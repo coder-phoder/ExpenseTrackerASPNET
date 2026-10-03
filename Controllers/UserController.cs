@@ -8,7 +8,7 @@ using ExpenseTracker.Models;
 
 namespace ExpenseTracker.Controllers;
 
-public class HomeController(AppDbContext db) : Controller
+public class UserController(AppDbContext db) : Controller
 {
     public IActionResult Index()
     {
@@ -63,11 +63,6 @@ public class HomeController(AppDbContext db) : Controller
     {
         await db.Expenses.Where(e => e.Id == id && e.UserId == CurrentUserId).ExecuteDeleteAsync();
         return RedirectToAction(nameof(Expenses));
-    }
-
-    public IActionResult Privacy()
-    {
-        return View();
     }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

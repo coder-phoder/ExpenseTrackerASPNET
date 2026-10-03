@@ -9,6 +9,7 @@ using ExpenseTracker.Models;
 
 namespace ExpenseTracker.Controllers;
 
+[Route("[action]")]
 public class AccountController(AppDbContext db) : Controller
 {
     private static readonly PasswordHasher<User> Hasher = new();
@@ -34,7 +35,7 @@ public class AccountController(AppDbContext db) : Controller
         }
 
         await SignInAsync(user);
-        return RedirectToAction("Dashboard", "Home");
+        return RedirectToAction("Dashboard", "User");
     }
 
     public IActionResult Register()
@@ -61,14 +62,14 @@ public class AccountController(AppDbContext db) : Controller
         await db.SaveChangesAsync();
 
         await SignInAsync(user);
-        return RedirectToAction("Dashboard", "Home");
+        return RedirectToAction("Dashboard", "User");
     }
 
     [HttpPost]
     public async Task<IActionResult> Logout()
     {
         await HttpContext.SignOutAsync();
-        return RedirectToAction("Index", "Home");
+        return RedirectToAction("Index", "User");
     }
 
     private Task SignInAsync(User user)
