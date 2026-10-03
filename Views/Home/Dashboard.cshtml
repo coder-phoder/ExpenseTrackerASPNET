@@ -4,6 +4,8 @@
 
 <h1>Welcome, @User.Identity?.Name</h1>
 
+<p><a asp-action="Expenses" class="btn btn-primary">My expenses</a></p>
+
 <form asp-controller="Account" asp-action="Logout" method="post">
     <button type="submit" class="btn btn-outline-secondary">Logout</button>
 </form>
