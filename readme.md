@@ -1,0 +1,2 @@
+dotnet user-secrets init
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" 'Server=mysql-kv-coderphoder69-b7f8.g.aivencloud.com;Port=24653;Database=expensetracker;User=avnadmin;Password=AVNS_ULN8-97zzhC6v0zxEa6;SslMode=Required;'
