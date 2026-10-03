@@ -32,10 +32,22 @@ public class UserController(AppDbContext db) : Controller
     }
 
     [Authorize]
-    public async Task<IActionResult> Expenses(int? edit)
+    public async Task<IActionResult> Calendar(DateOnly? month, DateOnly? day)
+    {
+        var date = month ?? day ?? DateOnly.FromDateTime(DateTime.Today);
+        var first = new DateOnly(date.Year, date.Month, 1);
+        var expenses = await db.Expenses
+            .Where(e => e.UserId == CurrentUserId && e.Date >= first && e.Date < first.AddMonths(1))
+            .OrderBy(e => e.Id)
+            .ToListAsync();
+        return View(new ExpensesViewModel(expenses, new Expense(), first));
+    }
+
+    [Authorize]
+    public async Task<IActionResult> Expenses(int? edit, DateOnly? date)
     {
         var expense = edit == null
-            ? new Expense { Date = DateOnly.FromDateTime(DateTime.Today) }
+            ? new Expense { Date = date ?? DateOnly.FromDateTime(DateTime.Today) }
             : await db.Expenses.SingleOrDefaultAsync(e => e.Id == edit && e.UserId == CurrentUserId);
         if (expense == null)
         {
@@ -46,7 +58,7 @@ public class UserController(AppDbContext db) : Controller
 
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> Expenses(Expense expense)
+    public async Task<IActionResult> Expenses(Expense expense, string? returnUrl)
     {
         if (expense.Id != 0 && !await db.Expenses.AnyAsync(e => e.Id == expense.Id && e.UserId == CurrentUserId))
         {
@@ -60,15 +72,15 @@ public class UserController(AppDbContext db) : Controller
         expense.UserId = CurrentUserId;
         db.Update(expense);
         await db.SaveChangesAsync();
-        return RedirectToAction(nameof(Expenses));
+        return BackTo(returnUrl);
     }
 
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> DeleteExpense(int id)
+    public async Task<IActionResult> DeleteExpense(int id, string? returnUrl)
     {
         await db.Expenses.Where(e => e.Id == id && e.UserId == CurrentUserId).ExecuteDeleteAsync();
-        return RedirectToAction(nameof(Expenses));
+        return BackTo(returnUrl);
     }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
@@ -78,6 +90,9 @@ public class UserController(AppDbContext db) : Controller
     }
 
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    private IActionResult BackTo(string? returnUrl) =>
+        Url.IsLocalUrl(returnUrl) ? Redirect(returnUrl) : RedirectToAction(nameof(Expenses));
 
     private async Task<IActionResult> ExpensesView(Expense expense)
     {

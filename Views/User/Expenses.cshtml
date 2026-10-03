@@ -10,31 +10,7 @@
     <div class="col-md-4">
         <h4>@(editing ? "Edit expense" : "Add expense")</h4>
         <form asp-action="Expenses" method="post">
-            <input type="hidden" asp-for="Expense.Id" />
-            <div class="mb-3">
-                <label asp-for="Expense.Title" class="form-label"></label>
-                <input asp-for="Expense.Title" class="form-control" />
-                <span asp-validation-for="Expense.Title" class="text-danger"></span>
-            </div>
-            <div class="mb-3">
-                <label asp-for="Expense.Price" class="form-label"></label>
-                <input asp-for="Expense.Price" class="form-control" />
-                <span asp-validation-for="Expense.Price" class="text-danger"></span>
-            </div>
-            <div class="mb-3">
-                <label asp-for="Expense.Date" class="form-label"></label>
-                <input asp-for="Expense.Date" class="form-control" />
-                <span asp-validation-for="Expense.Date" class="text-danger"></span>
-            </div>
-            <div class="mb-3">
-                <label asp-for="Expense.PaymentMode" class="form-label"></label>
-                <select asp-for="Expense.PaymentMode" asp-items="Html.GetEnumSelectList<PaymentMode>()" class="form-select"></select>
-            </div>
-            <div class="mb-3">
-                <label asp-for="Expense.Description" class="form-label"></label>
-                <textarea asp-for="Expense.Description" class="form-control"></textarea>
-                <span asp-validation-for="Expense.Description" class="text-danger"></span>
-            </div>
+            <partial name="_ExpenseFields" for="Expense" />
             <button type="submit" class="btn btn-primary">@(editing ? "Save" : "Add")</button>
             @if (editing)
             {
