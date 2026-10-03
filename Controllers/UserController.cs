@@ -26,6 +26,12 @@ public class UserController(AppDbContext db) : Controller
     }
 
     [Authorize]
+    public async Task<IActionResult> Profile()
+    {
+        return View(await db.Users.FindAsync(CurrentUserId));
+    }
+
+    [Authorize]
     public async Task<IActionResult> Expenses(int? edit)
     {
         var expense = edit == null
