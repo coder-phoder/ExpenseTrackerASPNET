@@ -1,0 +1,156 @@
+@model List<Expense>
+@{
+    ViewData["Title"] = "Analytics";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+@if (Model.Count == 0)
+{
+    <p class="text-body-secondary">No expenses yet. Add some from <a asp-action="Expenses">Expenses</a> or the <a asp-action="Calendar">Calendar</a> to see your analytics.</p>
+    return;
+}
+@{
+    var today = DateOnly.FromDateTime(DateTime.Today);
+    var thisMonth = new DateOnly(today.Year, today.Month, 1);
+    var names = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat;
+    decimal Spent(Func<Expense, bool> match) => Model.Where(match).Sum(e => e.Price ?? 0);
+    decimal InMonth(DateOnly m) => Spent(e => e.Date.Year == m.Year && e.Date.Month == m.Month);
+
+    var total = Spent(_ => true);
+    var monthTotal = InMonth(thisMonth);
+    var tiles = new[]
+    {
+        ("Total spent", total, $"{Model.Count} {(Model.Count == 1 ? "expense" : "expenses")}"),
+        ("This month", monthTotal, $"{InMonth(thisMonth.AddMonths(-1)):C0} last month"),
+        ("Daily average", monthTotal / today.Day, "so far this month"),
+        ("Average expense", total / Model.Count, "all time")
+    };
+    var modes = Enum.GetValues<PaymentMode>().Select(p => (Name: p.ToString(), Amount: Spent(e => e.PaymentMode == p))).ToArray();
+    var months = Enumerable.Range(-11, 12).Select(i => thisMonth.AddMonths(i))
+        .Select(m => (m.ToString("MMM"), m.ToString("MMMM yyyy"), InMonth(m))).ToArray();
+    var weekdays = Enum.GetValues<DayOfWeek>()
+        .Select(d => (names.AbbreviatedDayNames[(int)d], names.DayNames[(int)d], Spent(e => e.Date.DayOfWeek == d))).ToArray();
+
+    void ColumnChart((string Tick, string Name, decimal Amount)[] data)
+    {
+        var max = data.Max(d => d.Amount);
+        if (max == 0)
+        {
+            <p class="small text-body-secondary">No spending in this period.</p>
+            return;
+        }
+        // 1-2-5 step giving ~4 gridlines
+        var raw = (double)max / 4;
+        var magnitude = Math.Pow(10, Math.Floor(Math.Log10(raw)));
+        var fraction = raw / magnitude;
+        var step = Math.Max(1, (decimal)(magnitude * (fraction > 5 ? 10 : fraction > 2 ? 5 : fraction > 1 ? 2 : 1)));
+        var top = step * Math.Ceiling(max / step);
+        <div class="chart">
+            @for (var tick = 0m; tick <= top; tick += step)
+            {
+                <div class="tick" style="bottom: @(tick / top * 100)%"><span>@tick.ToString("C0")</span></div>
+            }
+            <div class="columns">
+                @foreach (var d in data)
+                {
+                    <div class="hit" tabindex="0" role="img" aria-label="@d.Name: @d.Amount.ToString("C")" style="--h: @(d.Amount / top * 100)%">
+                        <div class="bar"></div>
+                        <div class="tip"><strong>@d.Amount.ToString("C")</strong> @d.Name</div>
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="x-axis">
+            @foreach (var d in data)
+            {
+                <span>@d.Tick</span>
+            }
+        </div>
+        <details class="mt-2">
+            <summary class="small text-body-secondary">Show as table</summary>
+            <table class="table table-sm mt-2 mb-0">
+                @foreach (var d in data)
+                {
+                    <tr><td>@d.Name</td><td class="text-end num">@d.Amount.ToString("C")</td></tr>
+                }
+            </table>
+        </details>
+    }
+}
+
+<div class="analytics row g-3">
+    @foreach (var (label, value, note) in tiles)
+    {
+        <div class="col-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="small text-body-secondary">@label</div>
+                    <div class="fs-3 fw-semibold">@value.ToString("C0")</div>
+                    <div class="small text-body-secondary">@note</div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h6 mb-0">Monthly spending</h2>
+                <p class="small text-body-secondary">Last 12 months</p>
+                @{ ColumnChart(months); }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h6 mb-0">Payment mode</h2>
+                <p class="small text-body-secondary">Share of all spending</p>
+                <div class="split">
+                    @foreach (var (mode, amount) in modes.Where(m => m.Amount > 0))
+                    {
+                        <div class="hit" tabindex="0" role="img" aria-label="@mode: @amount.ToString("C")" style="flex: @amount">
+                            <div class="bar @mode.ToLower()"></div>
+                            <div class="tip"><strong>@amount.ToString("C")</strong> @mode</div>
+                        </div>
+                    }
+                </div>
+                <div class="d-flex flex-wrap gap-3 small mt-3">
+                    @foreach (var (mode, amount) in modes)
+                    {
+                        <span><span class="swatch bar @mode.ToLower()"></span>@mode <strong>@amount.ToString("C0")</strong> <span class="text-body-secondary">@((amount / total).ToString("P0"))</span></span>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h6 mb-0">By day of week</h2>
+                <p class="small text-body-secondary">All time</p>
+                @{ ColumnChart(weekdays); }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h6">Largest expenses</h2>
+                <table class="table table-sm mb-0">
+                    @foreach (var e in Model.OrderByDescending(x => x.Price).Take(5))
+                    {
+                        <tr>
+                            <td>@e.Title<div class="small text-body-secondary">@e.Date.ToString("dd MMM yyyy") · @e.PaymentMode</div></td>
+                            <td class="text-end num">@e.Price?.ToString("C")</td>
+                        </tr>
+                    }
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

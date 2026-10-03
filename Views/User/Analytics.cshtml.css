@@ -1,0 +1,135 @@
+.analytics {
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+}
+
+.num, .tick span {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Marks: hover/focus lifts the mark and shows its tooltip */
+.hit {
+    position: relative;
+}
+
+.bar {
+    background: var(--series-1);
+}
+
+.bar.cash {
+    background: var(--series-2);
+}
+
+.hit:hover > .bar, .hit:focus > .bar {
+    opacity: .8;
+}
+
+.tip {
+    display: none;
+    position: absolute;
+    bottom: calc(var(--h, 100%) + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1;
+    padding: .25rem .5rem;
+    white-space: nowrap;
+    font-size: .75rem;
+    color: var(--bs-secondary-color);
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: .375rem;
+    box-shadow: var(--bs-box-shadow-sm);
+}
+
+.tip strong {
+    color: var(--bs-body-color);
+}
+
+.hit:hover > .tip, .hit:focus > .tip {
+    display: block;
+}
+
+/* Column chart: hairline gridlines labelled on the left, one thin column per value */
+.chart {
+    position: relative;
+    height: 12rem;
+    margin: .75rem 0 0 4.5rem;
+}
+
+.tick {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px solid var(--grid);
+}
+
+.tick:first-child {
+    border-color: var(--baseline);
+}
+
+.tick span {
+    position: absolute;
+    right: 100%;
+    padding-right: .5rem;
+    transform: translateY(-50%);
+}
+
+.tick span, .x-axis {
+    font-size: .75rem;
+    color: var(--bs-secondary-color);
+}
+
+.columns {
+    position: absolute;
+    inset: 0;
+    display: flex;
+}
+
+.columns .hit {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.columns .bar {
+    width: min(24px, 60%);
+    height: var(--h);
+    border-radius: 4px 4px 0 0;
+}
+
+.x-axis {
+    display: flex;
+    margin-left: 4.5rem;
+}
+
+.x-axis span {
+    flex: 1;
+    text-align: center;
+}
+
+/* Part-to-whole bar: 2px surface gap between segments, rounded at the data end */
+.split {
+    display: flex;
+    gap: 2px;
+    height: 24px;
+}
+
+.split .bar {
+    height: 100%;
+}
+
+.split .hit:last-child .bar {
+    border-radius: 0 4px 4px 0;
+}
+
+.swatch {
+    display: inline-block;
+    width: .75rem;
+    height: .75rem;
+    margin-right: .375rem;
+    border-radius: 2px;
+    vertical-align: -.1em;
+}

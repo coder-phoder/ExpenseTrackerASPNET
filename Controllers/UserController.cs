@@ -32,6 +32,13 @@ public class UserController(AppDbContext db) : Controller
     }
 
     [Authorize]
+    public async Task<IActionResult> Analytics()
+    {
+        // ponytail: the view aggregates in memory; move to SQL GROUP BY if a user reaches ~100k expenses
+        return View(await db.Expenses.Where(e => e.UserId == CurrentUserId).ToListAsync());
+    }
+
+    [Authorize]
     public async Task<IActionResult> Calendar(DateOnly? month, DateOnly? day)
     {
         var date = month ?? day ?? DateOnly.FromDateTime(DateTime.Today);
