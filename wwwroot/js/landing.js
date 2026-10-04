@@ -1,4 +1,4 @@
-// ExpenseTracker landing page: background canvas, scroll-linked story and reveal-on-scroll.
+// ExpenseTracker landing, login and register pages: background canvas, scroll-linked story, reveal-on-scroll and the auth form meter.
 // Options on <body>: data-bg="columns|calm|off", data-motion="0..1.5", data-story-length="420" (vh).
 (function () {
   'use strict';
@@ -28,6 +28,38 @@
       });
     }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
     reveals.forEach(function (el) { io.observe(el); });
+  }
+
+  // Login/Register: the brand mark doubles as a form meter. Each bar (a column naming its inputs in
+  // data-fields) fills as those inputs become valid, so the logo is whole when the form is ready.
+  var form = document.querySelector('.au-card form');
+  if (form) {
+    var cols = document.querySelectorAll('.au-meter > [data-fields]');
+    var score = function (el) {
+      var v = el.value, min = +el.dataset.valLengthMin || 0, other = el.dataset.valEqualtoOther;
+      if (!v) return 0;
+      if (other) return v === form.elements[other.slice(2)].value ? 1 : .5; // other is "*.Password"
+      if (v.length < min) return .9 * v.length / min;
+      return el.validity.valid ? 1 : .5;
+    };
+    var meter = function () {
+      cols.forEach(function (col, i) {
+        var names = col.dataset.fields.split(' ');
+        var sum = names.reduce(function (s, n) { return s + score(form.elements[n]); }, 0);
+        body.style.setProperty('--m' + (i + 1), (sum / names.length).toFixed(3));
+      });
+    };
+    form.addEventListener('input', meter);
+    form.addEventListener('change', meter); // autofill
+    meter();
+
+    var show = form.querySelector('.au-show');
+    if (show) show.addEventListener('click', function () {
+      var on = show.textContent === 'Show';
+      show.textContent = on ? 'Hide' : 'Show';
+      show.setAttribute('aria-label', on ? 'Hide password' : 'Show password');
+      form.querySelectorAll('#Password, #ConfirmPassword').forEach(function (el) { el.type = on ? 'text' : 'password'; });
+    });
   }
 
   // Scroll-linked values
@@ -64,12 +96,11 @@
   function update() {
     var vh = window.innerHeight || 800;
     var de = document.documentElement;
-    if (nav) nav.style.setProperty('--pg', cl(window.scrollY / Math.max(1, de.scrollHeight - vh)).toFixed(4));
-    if (hero) {
-      var hr = hero.getBoundingClientRect();
-      hero.style.setProperty('--hero', cl(-hr.top / (vh * 0.7)).toFixed(4));
-      if (nav) nav.style.setProperty('--nav', cl(-hr.top / 80).toFixed(3));
+    if (nav) {
+      nav.style.setProperty('--pg', cl(window.scrollY / Math.max(1, de.scrollHeight - vh)).toFixed(4));
+      nav.style.setProperty('--nav', cl(window.scrollY / 80).toFixed(3));
     }
+    if (hero) hero.style.setProperty('--hero', cl(-hero.getBoundingClientRect().top / (vh * 0.7)).toFixed(4));
     if (story) {
       var sr = story.getBoundingClientRect();
       setStory(cl(-sr.top / Math.max(1, sr.height - vh)));

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - ExpenseTracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/css/landing.css" asp-append-version="true" />
+    <noscript><style>[data-reveal] { --r: 1 !important; }</style></noscript>
+</head>
+<body class="lp au" data-bg="calm">
+    <div class="au-canvas"><canvas id="lp-hero-canvas"></canvas></div>
+
+    <nav class="lp-nav">
+        <div class="lp-nav__in lp-wrap lp-pad">
+            <a asp-controller="User" asp-action="Index" class="lp-brand"><span class="lp-mark"><i></i><i></i><i></i></span><span>ExpenseTracker</span></a>
+        </div>
+    </nav>
+
+    <main class="au-main lp-wrap lp-pad">
+        @RenderBody()
+    </main>
+
+    <script src="~/js/landing.js" asp-append-version="true"></script>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <partial name="_ValidationScriptsPartial" />
+</body>
+</html>

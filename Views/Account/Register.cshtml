@@ -1,39 +1,49 @@
 @model RegisterViewModel
 @{
     ViewData["Title"] = "Register";
+    Layout = "_AuthLayout";
 }
 
-<h1>@ViewData["Title"]</h1>
-
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Register" method="post">
-            <div class="mb-3">
-                <label asp-for="Name" class="form-label"></label>
-                <input asp-for="Name" class="form-control" />
-                <span asp-validation-for="Name" class="text-danger"></span>
-            </div>
-            <div class="mb-3">
-                <label asp-for="Email" class="form-label"></label>
-                <input asp-for="Email" class="form-control" />
-                <span asp-validation-for="Email" class="text-danger"></span>
-            </div>
-            <div class="mb-3">
-                <label asp-for="Password" class="form-label"></label>
-                <input asp-for="Password" class="form-control" />
-                <span asp-validation-for="Password" class="text-danger"></span>
-            </div>
-            <div class="mb-3">
-                <label asp-for="ConfirmPassword" class="form-label"></label>
-                <input asp-for="ConfirmPassword" class="form-control" />
-                <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
-            </div>
-            <button type="submit" class="btn btn-primary">Register</button>
-        </form>
-        <p class="mt-3">Already have an account? <a asp-action="Login">Login</a></p>
+<section>
+    <h1 class="lp-h1 au-h1" data-reveal>
+        <span class="lp-rise"><span style="--d:.05s">Create your</span></span>
+        <span class="lp-rise"><span class="lp-serif c-violet" style="--d:.16s">account<span class="c-orange">.</span></span></span>
+    </h1>
+    <p class="lp-lede lp-fade" data-reveal style="--d:.3s">One private place for every expense, from chai to rent.</p>
+    <div class="au-meter" aria-hidden="true">
+        <div data-fields="Name"><i></i><span>Name</span></div>
+        <div data-fields="Email"><i></i><span>Email</span></div>
+        <div data-fields="Password ConfirmPassword"><i></i><span>Password</span></div>
     </div>
-</div>
+</section>
 
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
-}
+<div class="au-card lp-fade" data-reveal style="--d:.2s">
+    <form asp-action="Register" method="post">
+        <div class="au-field">
+            <label asp-for="Name"></label>
+            <input asp-for="Name" class="au-input" autocomplete="name" autofocus />
+            <span asp-validation-for="Name" class="au-err"></span>
+        </div>
+        <div class="au-field">
+            <label asp-for="Email"></label>
+            <input asp-for="Email" class="au-input" autocomplete="email" />
+            <span asp-validation-for="Email" class="au-err"></span>
+        </div>
+        <div class="au-field">
+            <label asp-for="Password"></label>
+            <div class="au-pw">
+                <input asp-for="Password" class="au-input" autocomplete="new-password" aria-describedby="pw-hint" />
+                <button type="button" class="au-show" aria-label="Show password">Show</button>
+            </div>
+            <span id="pw-hint" class="au-hint">At least 8 characters.</span>
+            <span asp-validation-for="Password" class="au-err"></span>
+        </div>
+        <div class="au-field">
+            <label asp-for="ConfirmPassword"></label>
+            <input asp-for="ConfirmPassword" class="au-input" autocomplete="new-password" />
+            <span asp-validation-for="ConfirmPassword" class="au-err"></span>
+        </div>
+        <button type="submit" class="lp-btn lp-btn--primary au-submit">Create account</button>
+    </form>
+    <p class="au-switch">Already have an account? <a asp-action="Login">Login</a></p>
+</div>

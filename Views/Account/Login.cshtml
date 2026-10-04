@@ -1,34 +1,43 @@
 @model LoginViewModel
 @{
     ViewData["Title"] = "Login";
+    Layout = "_AuthLayout";
 }
 
-<h1>@ViewData["Title"]</h1>
-
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Login" asp-route-returnUrl="@Context.Request.Query["ReturnUrl"]" method="post">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <div class="mb-3">
-                <label asp-for="Email" class="form-label"></label>
-                <input asp-for="Email" class="form-control" />
-                <span asp-validation-for="Email" class="text-danger"></span>
-            </div>
-            <div class="mb-3">
-                <label asp-for="Password" class="form-label"></label>
-                <input asp-for="Password" class="form-control" />
-                <span asp-validation-for="Password" class="text-danger"></span>
-            </div>
-            <div class="mb-3 form-check">
-                <input asp-for="RememberMe" class="form-check-input" />
-                <label asp-for="RememberMe" class="form-check-label"></label>
-            </div>
-            <button type="submit" class="btn btn-primary">Login</button>
-        </form>
-        <p class="mt-3">Don't have an account? <a asp-action="Register">Register</a></p>
+<section>
+    <h1 class="lp-h1 au-h1" data-reveal>
+        <span class="lp-rise"><span style="--d:.05s">Welcome</span></span>
+        <span class="lp-rise"><span class="lp-serif c-blue" style="--d:.16s">back<span class="c-orange">.</span></span></span>
+    </h1>
+    <p class="lp-lede lp-fade" data-reveal style="--d:.3s">Log in to see your expenses, calendar and charts.</p>
+    <div class="au-meter" aria-hidden="true">
+        <div data-fields="Email"><i></i><span>Email</span></div>
+        <div data-fields="Password"><i></i><span>Password</span></div>
+        <div data-fields="Email Password"><i></i><span>Ready</span></div>
     </div>
-</div>
+</section>
 
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
-}
+<div class="au-card lp-fade" data-reveal style="--d:.2s">
+    <form asp-action="Login" asp-route-returnUrl="@Context.Request.Query["ReturnUrl"]" method="post">
+        <div asp-validation-summary="ModelOnly" class="au-alert" role="alert"></div>
+        <div class="au-field">
+            <label asp-for="Email"></label>
+            <input asp-for="Email" class="au-input" autocomplete="username" autofocus />
+            <span asp-validation-for="Email" class="au-err"></span>
+        </div>
+        <div class="au-field">
+            <label asp-for="Password"></label>
+            <div class="au-pw">
+                <input asp-for="Password" class="au-input" autocomplete="current-password" />
+                <button type="button" class="au-show" aria-label="Show password">Show</button>
+            </div>
+            <span asp-validation-for="Password" class="au-err"></span>
+        </div>
+        <div class="au-check">
+            <input asp-for="RememberMe" />
+            <label asp-for="RememberMe"></label>
+        </div>
+        <button type="submit" class="lp-btn lp-btn--primary au-submit">Login</button>
+    </form>
+    <p class="au-switch">New here? <a asp-action="Register">Create an account</a></p>
+</div>

@@ -82,7 +82,7 @@ body.lp { --k: 1; margin: 0; background: var(--cream); color: var(--ink); font-f
 /* Hero */
 .lp-hero { --hero: 0; position: relative; padding-top: clamp(120px, 18vh, 170px); }
 .lp-hero__canvas { position: absolute; top: 0; left: 0; right: 0; height: 112svh; pointer-events: none; opacity: calc(1 - var(--hero) * .6); -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 10%, #000 70%, transparent 100%); mask-image: linear-gradient(to bottom, transparent 0%, #000 10%, #000 70%, transparent 100%); }
-.lp-hero__canvas canvas, .lp-cta__canvas canvas { display: block; width: 100%; height: 100%; }
+.lp-hero__canvas canvas, .lp-cta__canvas canvas, .au-canvas canvas { display: block; width: 100%; height: 100%; }
 .lp-hero__wash { position: absolute; top: 4vh; left: 50%; width: min(1000px, 140vw); height: min(640px, 80svh); transform: translateX(-50%); pointer-events: none; background: radial-gradient(closest-side, rgba(246, 243, 238, .82) 0%, rgba(246, 243, 238, .5) 55%, rgba(246, 243, 238, 0) 100%); }
 .lp-hero__copy { position: relative; max-width: 1000px; margin: 0 auto; text-align: center; display: flex; flex-direction: column; align-items: center; transform: translateY(calc(var(--hero) * -48px * var(--k))); }
 .lp-pill { --dy: 12px; display: inline-flex; align-items: center; gap: 10px; padding: 7px 15px 7px 9px; border-radius: 999px; background: rgba(255, 255, 255, .62); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, .9); box-shadow: 0 6px 20px -10px rgba(29, 36, 51, .25); font-size: 13px; color: rgba(29, 36, 51, .78); margin-bottom: 30px; }
@@ -363,7 +363,58 @@ body.lp { --k: 1; margin: 0; background: var(--cream); color: var(--ink); font-f
 .lp .lp-footer a { color: rgba(246, 243, 238, .72); }
 .lp .lp-footer a:hover { color: #fff; }
 
+/* Auth pages (Login, Register) */
+.au { --err: #b42318; }
+.au-canvas { position: fixed; inset: 0; pointer-events: none; opacity: .75; -webkit-mask-image: linear-gradient(to bottom, transparent 8%, #000 70%); mask-image: linear-gradient(to bottom, transparent 8%, #000 70%); }
+.au-main { position: relative; min-height: 100svh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 440px); align-items: center; gap: clamp(32px, 6vw, 96px); padding-top: 96px; padding-bottom: 48px; }
+.au-h1 { font-size: clamp(48px, 6.6vw, 100px); }
+
+/* The brand mark as a form meter: each bar fills (--m1..3, set by landing.js) as its fields become valid */
+.au-meter { display: flex; gap: 14px; height: clamp(110px, 20vh, 200px); margin-top: 56px; }
+.au-meter > div { display: grid; grid-template-rows: 1fr auto; row-gap: 12px; width: clamp(56px, 5.6vw, 80px); }
+.au-meter i { position: relative; align-self: end; height: var(--h); border-radius: 14px 14px 0 0; background: rgba(255, 255, 255, .85); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: inset 0 0 0 1px rgba(29, 36, 51, .08); overflow: hidden; }
+.au-meter i::before, .au .lp-mark i { transform: scaleY(var(--f)); transform-origin: bottom; transition: transform .6s var(--ease); }
+.au-meter i::before { content: ""; position: absolute; inset: 0; background: var(--c); }
+.au-meter span { font-size: 13px; font-weight: 500; color: var(--ink-2); text-align: center; }
+.au-meter > :nth-child(1) { --h: 50%; --c: var(--blue); }
+.au-meter > :nth-child(2) { --h: 100%; --c: var(--violet); }
+.au-meter > :nth-child(3) { --h: 69%; --c: var(--orange); }
+.au-meter > :nth-child(1), .au .lp-mark i:nth-child(1) { --f: var(--m1, 0); }
+.au-meter > :nth-child(2), .au .lp-mark i:nth-child(2) { --f: var(--m2, 0); }
+.au-meter > :nth-child(3), .au .lp-mark i:nth-child(3) { --f: var(--m3, 0); }
+/* The nav logo mirrors the meter but never shrinks below a stub, so it still reads as the logo */
+.au .lp-mark i { transform: scaleY(calc(.45 + .55 * var(--f))); }
+
+.au-card { background: rgba(255, 255, 255, .74); -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); border: 1px solid rgba(255, 255, 255, .95); border-radius: 24px; padding: clamp(22px, 3vw, 36px); box-shadow: 0 50px 100px -40px rgba(29, 50, 100, .4), 0 0 0 1px rgba(29, 36, 51, .05); }
+.au-field { margin-bottom: 18px; }
+.au-field > label { display: block; margin-bottom: 7px; font-size: 14px; font-weight: 600; }
+.au-input { display: block; width: 100%; padding: 13px 15px; font: inherit; font-size: 16px; color: var(--ink); background: #fff; border: 1px solid rgba(29, 36, 51, .16); border-radius: 12px; outline: 2px solid transparent; transition: border-color .2s ease, box-shadow .2s ease; }
+.au-input:focus { border-color: var(--btn); box-shadow: 0 0 0 4px rgba(42, 120, 214, .18); }
+.au-input.input-validation-error { border-color: var(--err); }
+.au-input.input-validation-error:focus { box-shadow: 0 0 0 4px rgba(180, 35, 24, .14); }
+.au-pw { position: relative; }
+.au-pw .au-input { padding-right: 72px; }
+.au-show { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); padding: 6px 10px; border: 0; border-radius: 8px; background: none; color: var(--btn); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.au-show:hover { background: var(--sky-w); }
+.au-hint, .au-err { display: block; margin-top: 6px; font-size: 13px; }
+.au-hint { color: var(--ink-3); }
+.au-err { color: var(--err); }
+.au-err:empty { display: none; }
+.au-hint:has(+ .au-err:not(:empty)) { display: none; }
+.au-alert { margin-bottom: 18px; padding: 12px 14px; border-radius: 12px; background: #fdecea; color: var(--err); font-size: 14px; }
+.au-alert ul { margin: 0; padding: 0; list-style: none; }
+.au-check { display: flex; align-items: center; gap: 10px; margin: 4px 0 22px; font-size: 15px; }
+.au-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--btn); }
+.au-submit { width: 100%; justify-content: center; font-family: inherit; cursor: pointer; }
+.au-switch { margin: 20px 0 0; text-align: center; font-size: 15px; color: var(--ink-2); }
+.au-switch a { font-weight: 600; }
+@media (max-width: 899px) {
+  .au-main { grid-template-columns: minmax(0, 1fr); align-items: start; gap: 28px; padding-top: 100px; }
+  .au-meter { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   [data-reveal] { --r: 1; }
+  .au-meter i::before, .au .lp-mark i { transition: none; }
 }
