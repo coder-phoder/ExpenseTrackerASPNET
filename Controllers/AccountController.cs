@@ -12,7 +12,7 @@ namespace ExpenseTracker.Controllers;
 [Route("[action]")]
 public class AccountController(AppDbContext db) : Controller
 {
-    private static readonly PasswordHasher<User> Hasher = new();
+    internal static readonly PasswordHasher<User> Hasher = new();
 
     public IActionResult Login()
     {

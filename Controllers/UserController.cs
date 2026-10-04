@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ExpenseTracker.Data;
@@ -33,8 +34,7 @@ public class UserController(AppDbContext db) : Controller
     [Authorize]
     public async Task<IActionResult> Profile()
     {
-        var user = (await db.Users.FindAsync(CurrentUserId))!;
-        return View(new ProfileViewModel { Name = user.Name, Email = user.Email });
+        return ProfileView((await db.Users.FindAsync(CurrentUserId))!);
     }
 
     [Authorize]
@@ -49,7 +49,7 @@ public class UserController(AppDbContext db) : Controller
         if (!ModelState.IsValid)
         {
             // The page shows the saved values; the modal's inputs re-show what was typed (from ModelState) with the errors.
-            return View(new ProfileViewModel { Name = user.Name, Email = user.Email });
+            return ProfileView(user);
         }
 
         user.Name = model.Name;
@@ -58,6 +58,26 @@ public class UserController(AppDbContext db) : Controller
         var persistent = (await HttpContext.AuthenticateAsync()).Properties?.IsPersistent == true;
         await AccountController.SignInAsync(HttpContext, user, persistent);
         TempData["Success"] = "Profile updated.";
+        return RedirectToAction(nameof(Profile));
+    }
+
+    [Authorize]
+    [HttpPost]
+    public async Task<IActionResult> ChangePassword(ChangePasswordViewModel model)
+    {
+        var user = (await db.Users.FindAsync(CurrentUserId))!;
+        if (ModelState.IsValid && AccountController.Hasher.VerifyHashedPassword(user, user.PasswordHash, model.CurrentPassword) == PasswordVerificationResult.Failed)
+        {
+            ModelState.AddModelError(nameof(model.CurrentPassword), "Current password is incorrect.");
+        }
+        if (!ModelState.IsValid)
+        {
+            return ProfileView(user);
+        }
+
+        user.PasswordHash = AccountController.Hasher.HashPassword(user, model.NewPassword);
+        await db.SaveChangesAsync();
+        TempData["Success"] = "Password changed.";
         return RedirectToAction(nameof(Profile));
     }
 
@@ -137,6 +157,9 @@ public class UserController(AppDbContext db) : Controller
     }
 
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    private IActionResult ProfileView(User user) =>
+        View(nameof(Profile), new ProfileViewModel { Name = user.Name, Email = user.Email });
 
     private IActionResult BackTo(string? returnUrl) =>
         Url.IsLocalUrl(returnUrl) ? Redirect(returnUrl) : RedirectToAction(nameof(Expenses));

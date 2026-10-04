@@ -13,6 +13,9 @@
 </dl>
 
 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#profileModal">Edit profile</button>
+<button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#passwordModal">Change password</button>
+
+<partial name="_ChangePassword" model="new ChangePasswordViewModel()" />
 
 <div class="modal fade" id="profileModal" tabindex="-1" aria-labelledby="profileModalTitle" aria-hidden="true">
     <div class="modal-dialog">
@@ -45,6 +48,8 @@
     <partial name="_ValidationScriptsPartial" />
     @if (!ViewData.ModelState.IsValid)
     {
-        <script>bootstrap.Modal.getOrCreateInstance(document.getElementById('profileModal')).show();</script>
+        // Reopen whichever form failed: only the password form posts CurrentPassword.
+        var modal = ViewData.ModelState.ContainsKey(nameof(ChangePasswordViewModel.CurrentPassword)) ? "passwordModal" : "profileModal";
+        <script>bootstrap.Modal.getOrCreateInstance(document.getElementById('@modal')).show();</script>
     }
 }
