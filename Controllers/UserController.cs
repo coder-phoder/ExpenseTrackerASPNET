@@ -76,6 +76,7 @@ public class UserController(AppDbContext db) : Controller
             return await ExpensesView(expense);
         }
 
+        TempData["Success"] = expense.Id == 0 ? "Expense added." : "Expense updated.";
         expense.UserId = CurrentUserId;
         db.Update(expense);
         await db.SaveChangesAsync();
@@ -86,7 +87,10 @@ public class UserController(AppDbContext db) : Controller
     [HttpPost]
     public async Task<IActionResult> DeleteExpense(int id, string? returnUrl)
     {
-        await db.Expenses.Where(e => e.Id == id && e.UserId == CurrentUserId).ExecuteDeleteAsync();
+        if (await db.Expenses.Where(e => e.Id == id && e.UserId == CurrentUserId).ExecuteDeleteAsync() > 0)
+        {
+            TempData["Success"] = "Expense deleted.";
+        }
         return BackTo(returnUrl);
     }
 
