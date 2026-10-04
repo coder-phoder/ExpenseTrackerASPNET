@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -125,10 +124,12 @@ public class UserController(AppDbContext db) : Controller
         return BackTo(returnUrl);
     }
 
+    // Re-executed with the failed request's method, so a failed POST must not trip the antiforgery check here.
+    [IgnoreAntiforgeryToken]
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()
     {
-        return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        return View();
     }
 
     private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

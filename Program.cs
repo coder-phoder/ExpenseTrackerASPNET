@@ -21,6 +21,8 @@ if (!app.Environment.IsDevelopment())
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
+// Empty 4xx/5xx responses (unknown URLs, NotFound()) render the friendly error page.
+app.UseStatusCodePagesWithReExecute("/User/Error");
 
 app.UseHttpsRedirection();
 app.UseRequestLocalization("en-IN");
