@@ -3,6 +3,7 @@
     ViewData["Title"] = "Calendar";
     var month = Model.Month;
     var today = DateOnly.FromDateTime(DateTime.Today);
+    var totals = Model.Expenses.GroupBy(e => e.Date).ToDictionary(g => g.Key, g => g.Sum(e => e.Price ?? 0));
 }
 
 <h1>@month.ToString("MMMM yyyy")</h1>
@@ -32,8 +33,14 @@
                     {
                         var date = day.ToString("yyyy-MM-dd");
                         <td class="@(day == today ? "table-primary" : null)">
-                            <a asp-action="Expenses" asp-route-date="@date" class="d-block" title="@day.ToString("dd MMM yyyy")"
-                               data-date="@date" data-bs-toggle="modal" data-bs-target="#dayModal">@day.Day</a>
+                            <a asp-action="Expenses" asp-route-date="@date" class="d-block text-decoration-none" title="@day.ToString("dd MMM yyyy")"
+                               data-date="@date" data-bs-toggle="modal" data-bs-target="#dayModal">
+                                @day.Day
+                                @if (totals.TryGetValue(day, out var total))
+                                {
+                                    <span class="d-block small fw-semibold text-body">@total.ToString("C0")</span>
+                                }
+                            </a>
                         </td>
                     }
                     else
