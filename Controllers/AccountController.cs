@@ -20,7 +20,7 @@ public class AccountController(AppDbContext db) : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> Login(LoginViewModel model)
+    public async Task<IActionResult> Login(LoginViewModel model, string? returnUrl)
     {
         if (!ModelState.IsValid)
         {
@@ -35,7 +35,8 @@ public class AccountController(AppDbContext db) : Controller
         }
 
         await SignInAsync(HttpContext, user, model.RememberMe);
-        return RedirectToAction("Dashboard", "User");
+        // IsLocalUrl rejects other sites (including //host and /\host tricks), so this can't be used as an open redirect.
+        return Url.IsLocalUrl(returnUrl) ? Redirect(returnUrl) : RedirectToAction("Dashboard", "User");
     }
 
     public IActionResult Register()
