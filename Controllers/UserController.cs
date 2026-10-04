@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -55,7 +56,8 @@ public class UserController(AppDbContext db) : Controller
         user.Name = model.Name;
         user.Email = model.Email;
         await db.SaveChangesAsync();
-        await AccountController.SignInAsync(HttpContext, user);
+        var persistent = (await HttpContext.AuthenticateAsync()).Properties?.IsPersistent == true;
+        await AccountController.SignInAsync(HttpContext, user, persistent);
         TempData["Success"] = "Profile updated.";
         return RedirectToAction(nameof(Profile));
     }

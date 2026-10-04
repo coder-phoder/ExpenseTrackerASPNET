@@ -34,7 +34,7 @@ public class AccountController(AppDbContext db) : Controller
             return View(model);
         }
 
-        await SignInAsync(HttpContext, user);
+        await SignInAsync(HttpContext, user, model.RememberMe);
         return RedirectToAction("Dashboard", "User");
     }
 
@@ -73,13 +73,14 @@ public class AccountController(AppDbContext db) : Controller
     }
 
     // Also called after a profile edit, so the cookie picks up the new name.
-    internal static Task SignInAsync(HttpContext http, User user)
+    internal static Task SignInAsync(HttpContext http, User user, bool persistent = false)
     {
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.Name)
         };
-        return http.SignInAsync(new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)));
+        return http.SignInAsync(new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)),
+            new AuthenticationProperties { IsPersistent = persistent });
     }
 }
