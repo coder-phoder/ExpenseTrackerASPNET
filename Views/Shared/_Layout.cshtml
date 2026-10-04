@@ -5,13 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - ExpenseTracker</title>
     <script type="importmap"></script>
+    <script>
+        // Saved theme, else the OS setting. Set before first paint so the page never flashes the wrong theme.
+        document.documentElement.dataset.bsTheme = localStorage.getItem('theme') ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        function toggleTheme() {
+            const theme = document.documentElement.dataset.bsTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.dataset.bsTheme = theme;
+            localStorage.setItem('theme', theme);
+        }
+    </script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/ExpenseTracker.styles.css" asp-append-version="true" />
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm bg-body border-bottom box-shadow mb-3">
             <div class="container-fluid">
                 <a class="navbar-brand" asp-area="" asp-controller="User" asp-action="Index">ExpenseTracker</a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
@@ -21,28 +30,31 @@
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="User" asp-action="Index">Home</a>
+                            <a class="nav-link text-body" asp-area="" asp-controller="User" asp-action="Index">Home</a>
                         </li>
                         @if (User.Identity?.IsAuthenticated == true)
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="User" asp-action="Expenses">Expenses</a>
+                                <a class="nav-link text-body" asp-area="" asp-controller="User" asp-action="Expenses">Expenses</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="User" asp-action="Calendar">Calendar</a>
+                                <a class="nav-link text-body" asp-area="" asp-controller="User" asp-action="Calendar">Calendar</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="User" asp-action="Analytics">Analytics</a>
+                                <a class="nav-link text-body" asp-area="" asp-controller="User" asp-action="Analytics">Analytics</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="User" asp-action="Profile">Profile</a>
+                                <a class="nav-link text-body" asp-area="" asp-controller="User" asp-action="Profile">Profile</a>
                             </li>
                         }
                     </ul>
+                    <button type="button" class="btn btn-link nav-link text-body" onclick="toggleTheme()">
+                        <span class="when-light">Dark mode</span><span class="when-dark">Light mode</span>
+                    </button>
                     @if (User.Identity?.IsAuthenticated == true)
                     {
                         <form asp-controller="Account" asp-action="Logout" method="post">
-                            <button type="submit" class="btn btn-link nav-link text-dark">Logout</button>
+                            <button type="submit" class="btn btn-link nav-link text-body">Logout</button>
                         </form>
                     }
                 </div>

@@ -32,7 +32,7 @@
                     if (day.Month == month.Month)
                     {
                         var date = day.ToString("yyyy-MM-dd");
-                        <td class="@(day == today ? "table-primary" : null)">
+                        <td class="@(day == today ? "bg-primary-subtle" : null)">
                             <a asp-action="Expenses" asp-route-date="@date" class="d-block text-decoration-none" title="@day.ToString("dd MMM yyyy")"
                                data-date="@date" data-bs-toggle="modal" data-bs-target="#dayModal">
                                 @day.Day

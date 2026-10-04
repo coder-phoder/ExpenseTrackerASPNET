@@ -1,3 +1,32 @@
+/* Theme colours: the one place light and dark colours are defined.
+   Bootstrap's own --bs-* variables (background, text, links, borders) can be overridden in these blocks too. */
+:root, [data-bs-theme=light] {
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --grid: #e1e0d9;
+  --baseline: #c3c2b7;
+}
+
+[data-bs-theme=dark] {
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --grid: #343a40;
+  --baseline: #495057;
+}
+
+/* Theme button label: names the theme a click switches to */
+[data-bs-theme=light] .when-dark, [data-bs-theme=dark] .when-light {
+  display: none;
+}
+
 html {
   font-size: 14px;
 }
@@ -9,7 +38,7 @@ html {
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+  box-shadow: 0 0 0 0.1rem var(--bs-body-bg), 0 0 0 0.25rem #258cfb;
 }
 
 html {
