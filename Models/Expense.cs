@@ -1,12 +1,28 @@
 using System.ComponentModel.DataAnnotations;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 
 namespace ExpenseTracker.Models;
 
+// Stored as int: append new modes at the end, never reorder.
 public enum PaymentMode
 {
     Online,
-    Cash
+    Cash,
+    [Display(Name = "UPI")]
+    Upi,
+    [Display(Name = "Debit card")]
+    DebitCard,
+    [Display(Name = "Credit card")]
+    CreditCard,
+    [Display(Name = "Net banking")]
+    NetBanking
+}
+
+public static class PaymentModeExtensions
+{
+    public static string DisplayName(this PaymentMode mode) =>
+        typeof(PaymentMode).GetField(mode.ToString())?.GetCustomAttribute<DisplayAttribute>()?.Name ?? mode.ToString();
 }
 
 public class Expense

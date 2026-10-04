@@ -26,7 +26,10 @@
         ("Daily average", monthTotal / today.Day, "so far this month"),
         ("Average expense", total / Model.Count, "all time")
     };
-    var modes = Enum.GetValues<PaymentMode>().Select(p => (Name: p.ToString(), Amount: Spent(e => e.PaymentMode == p))).ToArray();
+    // Colour follows the mode (series slot = enum value + 1), so it never changes when other modes are empty.
+    var modes = Enum.GetValues<PaymentMode>()
+        .Select(p => (Name: p.DisplayName(), Color: $"var(--series-{(int)p + 1})", Amount: Spent(e => e.PaymentMode == p)))
+        .Where(m => m.Amount > 0).ToArray();
     var months = Enumerable.Range(-11, 12).Select(i => thisMonth.AddMonths(i))
         .Select(m => (m.ToString("MMM"), m.ToString("MMMM yyyy"), InMonth(m))).ToArray();
     var weekdays = Enum.GetValues<DayOfWeek>()
@@ -109,18 +112,18 @@
                 <h2 class="h6 mb-0">Payment mode</h2>
                 <p class="small text-body-secondary">Share of all spending</p>
                 <div class="split">
-                    @foreach (var (mode, amount) in modes.Where(m => m.Amount > 0))
+                    @foreach (var (mode, color, amount) in modes)
                     {
                         <div class="hit" tabindex="0" role="img" aria-label="@mode: @amount.ToString("C")" style="flex: @amount">
-                            <div class="bar @mode.ToLower()"></div>
+                            <div class="bar" style="background: @color"></div>
                             <div class="tip"><strong>@amount.ToString("C")</strong> @mode</div>
                         </div>
                     }
                 </div>
                 <div class="d-flex flex-wrap gap-3 small mt-3">
-                    @foreach (var (mode, amount) in modes)
+                    @foreach (var (mode, color, amount) in modes)
                     {
-                        <span><span class="swatch bar @mode.ToLower()"></span>@mode <strong>@amount.ToString("C0")</strong> <span class="text-body-secondary">@((amount / total).ToString("P0"))</span></span>
+                        <span><span class="swatch bar" style="background: @color"></span>@mode <strong>@amount.ToString("C0")</strong> <span class="text-body-secondary">@((amount / total).ToString("P0"))</span></span>
                     }
                 </div>
             </div>
@@ -145,7 +148,7 @@
                     @foreach (var e in Model.OrderByDescending(x => x.Price).Take(5))
                     {
                         <tr>
-                            <td>@e.Title<div class="small text-body-secondary">@e.Date.ToString("dd MMM yyyy") · @e.PaymentMode</div></td>
+                            <td>@e.Title<div class="small text-body-secondary">@e.Date.ToString("dd MMM yyyy") · @e.PaymentMode.DisplayName()</div></td>
                             <td class="text-end num">@e.Price?.ToString("C")</td>
                         </tr>
                     }

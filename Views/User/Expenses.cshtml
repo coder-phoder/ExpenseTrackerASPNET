@@ -35,7 +35,7 @@
                     <option value="">All modes</option>
                     @foreach (var m in Enum.GetValues<PaymentMode>())
                     {
-                        <option selected="@(filter["mode"] == m.ToString())">@m</option>
+                        <option value="@m" selected="@(filter["mode"] == m.ToString())">@m.DisplayName()</option>
                     }
                 </select>
             </div>
@@ -71,7 +71,7 @@
                             <td>@e.Date.ToString("dd MMM yyyy")</td>
                             <td>@e.Title</td>
                             <td>@e.Description</td>
-                            <td>@e.PaymentMode</td>
+                            <td>@e.PaymentMode.DisplayName()</td>
                             <td class="text-end">@e.Price?.ToString("C")</td>
                             <td class="text-end text-nowrap">
                                 <a asp-action="Expenses" asp-route-edit="@e.Id" class="btn btn-sm btn-outline-primary">Edit</a>
