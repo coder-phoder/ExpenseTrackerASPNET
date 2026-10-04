@@ -1,10 +1,438 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@using System.Globalization
+@{
+    Layout = null;
+    string P(double v) => v.ToString(CultureInfo.InvariantCulture);
+    var months = new[] { "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct" };
+    var heroBars = new[] { 52.33, 71.33, 60.33, 49.17, 56.5, 64.5, 75.17, 57.67, 52, 66.33, 68.83, 20.8 };
+    var storyBars = new[] { 52.33, 71.33, 60.33, 49.17, 56.5, 64.5, 75.17, 57.67, 52, 66.33, 68.83, 22.87 };
+    var ticks = new[] { (0.0, "₹0"), (33.333, "₹20,000"), (66.667, "₹40,000"), (100.0, "₹60,000") };
+    var dow = new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+    var tableRows = new[]
+    {
+        ("04 Oct 2026", "Auto fare", "Cash", "₹85.00"),
+        ("03 Oct 2026", "Lunch", "Cash", "₹320.00"),
+        ("03 Oct 2026", "Vegetables", "Cash", "₹180.00"),
+        ("02 Oct 2026", "Electricity", "Online", "₹2,150.00"),
+        ("01 Oct 2026", "Rent", "Online", "₹18,000.00"),
+        ("01 Oct 2026", "Bus pass", "Cash", "₹600.00"),
+        ("30 Sep 2026", "Recharge", "Online", "₹449.00"),
+        ("29 Sep 2026", "Petrol", "Online", "₹1,500.00"),
+        ("28 Sep 2026", "Movie", "Online", "₹640.00"),
+        ("27 Sep 2026", "Groceries", "Cash", "₹865.00")
+    };
+    var chipsA = new[]
+    {
+        ("Chai", "04 Oct", "Cash", "₹60.00", "peach"),
+        ("Rent", "01 Oct", "Online", "₹18,000.00", "sky"),
+        ("Groceries", "04 Oct", "Online", "₹1,240.00", "peach"),
+        ("Auto fare", "04 Oct", "Cash", "₹85.00", "mint"),
+        ("Electricity bill", "02 Oct", "Online", "₹2,150.00", "lilac"),
+        ("Movie tickets", "28 Sep", "Online", "₹640.00", "butter"),
+        ("Vegetables", "03 Oct", "Cash", "₹180.00", "peach"),
+        ("Mobile recharge", "30 Sep", "Online", "₹449.00", "lilac"),
+        ("Haircut", "27 Sep", "Cash", "₹250.00", "butter")
+    };
+    var chipsB = new[]
+    {
+        ("Petrol", "29 Sep", "Online", "₹1,500.00", "mint"),
+        ("Lunch", "03 Oct", "Cash", "₹320.00", "peach"),
+        ("Gym membership", "01 Oct", "Online", "₹1,200.00", "sky"),
+        ("Medicines", "26 Sep", "Online", "₹410.00", "butter"),
+        ("Bus pass", "01 Oct", "Cash", "₹600.00", "mint"),
+        ("Shoes", "21 Sep", "Online", "₹1,899.00", "butter"),
+        ("Internet bill", "05 Sep", "Online", "₹799.00", "lilac"),
+        ("Samosas", "02 Oct", "Cash", "₹40.00", "peach"),
+        ("Flight to Pune", "08 Aug", "Online", "₹4,820.00", "mint")
+    };
+    var weekdays = new[] { 82, 46, 40, 52, 44, 68, 96 };
 }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ExpenseTracker — Every rupee, accounted for</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/css/landing.css" asp-append-version="true" />
+    <noscript><style>[data-reveal] { --r: 1 !important; }</style></noscript>
+</head>
+<body class="lp" data-bg="columns" data-motion="1" data-story-length="420">
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Track your expenses in one place.</p>
-    <a class="btn btn-primary" asp-controller="Account" asp-action="Login">Login</a>
-    <a class="btn btn-outline-primary" asp-controller="Account" asp-action="Register">Register</a>
-</div>
+    <nav class="lp-nav">
+        <div class="lp-nav__in lp-wrap lp-pad">
+            <a href="#top" class="lp-brand"><span class="lp-mark"><i></i><i></i><i></i></span><span>ExpenseTracker</span></a>
+            <div class="lp-nav__links">
+                <a href="#story" class="lp-nav__link">How it works</a>
+                <a href="#features" class="lp-nav__link">Features</a>
+                <a asp-controller="Account" asp-action="Login" class="lp-nav__login">Login</a>
+                <a asp-controller="Account" asp-action="Register" class="lp-nav__cta">Register</a>
+            </div>
+        </div>
+        <div class="lp-progress"></div>
+    </nav>
+
+    <section id="top" class="lp-hero lp-pad">
+        <div class="lp-hero__canvas"><canvas id="lp-hero-canvas"></canvas></div>
+        <div class="lp-hero__wash"></div>
+
+        <div class="lp-hero__copy">
+            <div class="lp-pill lp-fade" data-reveal>
+                <span class="lp-pill__rupee">₹</span>
+                <span>Personal expense tracking, made calm</span>
+            </div>
+            <h1 class="lp-h1" data-reveal>
+                <span class="lp-rise"><span style="--d:.05s">Every</span> <span style="--d:.13s">rupee,</span></span>
+                <span class="lp-rise"><span class="lp-serif c-blue" style="--d:.24s">accounted</span> <span class="lp-serif c-violet" style="--d:.32s">for<span class="c-orange">.</span></span></span>
+            </h1>
+            <p class="lp-lede lp-fade" data-reveal style="--d:.45s">Log what you spend, see it on a calendar, and understand it with clear charts. ExpenseTracker keeps all your expenses in one private place.</p>
+            <div class="lp-ctas lp-fade" data-reveal style="--d:.58s">
+                <a asp-controller="Account" asp-action="Register" class="lp-btn lp-btn--primary">Create your account <span>→</span></a>
+                <a href="#story" class="lp-btn lp-btn--glass">See how it works</a>
+            </div>
+        </div>
+
+        <div class="lp-dash">
+            <div class="lp-dash__glow"></div>
+            <div class="lp-dash__card">
+                <div class="ap-nav">
+                    <span class="ap-brand">ExpenseTracker</span>
+                    <span>Home</span><span>Expenses</span><span>Calendar</span><span>Analytics</span><span>Profile</span>
+                    <span class="ap-logout">Logout</span>
+                </div>
+                <div class="ap-body">
+                    <div class="ap-h1">Analytics</div>
+                    <div class="ap-tiles">
+                        <div class="ap-card"><div class="ap-muted">Total spent</div><div class="ap-val">₹4,16,980</div><div class="ap-muted">640 expenses</div></div>
+                        <div class="ap-card"><div class="ap-muted">This month</div><div class="ap-val">₹12,480</div><div class="ap-muted">₹41,300 last month</div></div>
+                        <div class="ap-card"><div class="ap-muted">Daily average</div><div class="ap-val">₹3,120</div><div class="ap-muted">so far this month</div></div>
+                        <div class="ap-card"><div class="ap-muted">Average expense</div><div class="ap-val">₹652</div><div class="ap-muted">all time</div></div>
+                    </div>
+                    <div class="ap-row">
+                        <div class="ap-card">
+                            <div class="ap-h6">Monthly spending</div>
+                            <div class="ap-muted">Last 12 months</div>
+                            <div class="ap-chart" data-reveal>
+                                @foreach (var (pos, label) in ticks)
+                                {
+                                    <div class="ap-tick" style="bottom:@P(pos)%"><span>@label</span></div>
+                                }
+                                <div class="ap-cols">
+                                    @for (var i = 0; i < heroBars.Length; i++)
+                                    {
+                                        <div><div class="ap-bar" style="--h:@P(heroBars[i])%; --i:@i"></div></div>
+                                    }
+                                </div>
+                            </div>
+                            <div class="ap-xaxis">@foreach (var m in months) { <span>@m</span> }</div>
+                        </div>
+                        <div class="ap-card">
+                            <div class="ap-h6">Payment mode</div>
+                            <div class="ap-muted">Share of all spending</div>
+                            <div class="ap-split" data-reveal><div class="on" style="flex:312735"></div><div class="cash" style="flex:104245"></div></div>
+                            <div class="ap-legend">
+                                <span><span class="ap-sw on"></span>Online <strong>₹3,12,735</strong> <span class="ap-muted">75%</span></span>
+                                <span><span class="ap-sw cash"></span>Cash <strong>₹1,04,245</strong> <span class="ap-muted">25%</span></span>
+                            </div>
+                            <div class="ap-h6" style="margin:22px 0 6px">Largest expenses</div>
+                            <div class="ap-lg"><div>Rent<small>01 Oct 2026 · Online</small></div><div class="num">₹18,000.00</div></div>
+                            <div class="ap-lg"><div>Laptop repair<small>14 Sep 2026 · Online</small></div><div class="num">₹6,500.00</div></div>
+                            <div class="ap-lg"><div>Flight to Pune<small>08 Aug 2026 · Online</small></div><div class="num">₹4,820.00</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="story" class="lp-story">
+        <div class="lp-story__pin">
+            <div class="lp-story__bg"><div class="lp-wash-1"></div><div class="lp-wash-2"></div><div class="lp-wash-3"></div></div>
+            <div class="lp-story__grid">
+                <div>
+                    <div class="lp-eyebrow">How it works</div>
+                    <h2 class="lp-h2 lp-story__title">From one entry to the <span class="lp-serif">whole picture.</span></h2>
+                    <div class="lp-steps">
+                        <div class="lp-step">
+                            <div class="lp-step__tag">01 · Log it</div>
+                            <div class="lp-step__title">Add an expense in seconds.</div>
+                        </div>
+                        <div class="lp-step">
+                            <div class="lp-step__tag">02 · See it</div>
+                            <div class="lp-step__title">Find it on your calendar.</div>
+                        </div>
+                        <div class="lp-step">
+                            <div class="lp-step__tag">03 · Understand it</div>
+                            <div class="lp-step__title">Watch the patterns appear.</div>
+                        </div>
+                    </div>
+                    <div class="lp-rails">
+                        <div class="lp-rail"><div class="lp-rail__label">Expenses</div><div class="lp-rail__track"><div class="lp-rail__fill"></div></div></div>
+                        <div class="lp-rail"><div class="lp-rail__label">Calendar</div><div class="lp-rail__track"><div class="lp-rail__fill"></div></div></div>
+                        <div class="lp-rail"><div class="lp-rail__label">Analytics</div><div class="lp-rail__track"><div class="lp-rail__fill"></div></div></div>
+                    </div>
+                </div>
+
+                <div class="lp-panel-wrap">
+                    <div class="lp-panel" aria-hidden="true">
+                        <div class="pm-nav">
+                            <span class="pm-brand">ExpenseTracker</span>
+                            <span>Home</span>
+                            <span class="pm-tab pm-tab--a">Expenses<i></i></span>
+                            <span class="pm-tab pm-tab--b">Calendar<i></i></span>
+                            <span class="pm-tab pm-tab--c">Analytics<i></i></span>
+                            <span>Profile</span>
+                            <span class="pm-logout">Logout</span>
+                        </div>
+
+                        <div class="pm-layer pm-exp">
+                            <div class="pm-alert">Expense added.</div>
+                            <div class="pm-push">
+                                <div class="pm-h1">Expenses</div>
+                                <div class="pm-cols">
+                                    <div>
+                                        <div class="pm-h4">Add expense</div>
+                                        <div class="pm-field" style="--fc:var(--fc1,0); --ty:var(--ty1,0)"><div class="pm-label">Title</div><div class="pm-input"><span class="pm-type">Groceries</span></div></div>
+                                        <div class="pm-field" style="--fc:var(--fc2,0); --ty:var(--ty2,0)"><div class="pm-label">Description</div><div class="pm-input"><span class="pm-type">Weekly vegetables and milk</span></div></div>
+                                        <div class="pm-field" style="--fc:var(--fc3,0); --ty:var(--ty3,0)"><div class="pm-label">Price (₹)</div><div class="pm-input"><span class="pm-type num">1240.00</span></div></div>
+                                        <div class="pm-field" style="--fc:var(--fc4,0)"><div class="pm-label">Date</div><div class="pm-input"><span class="num">04-10-2026</span></div></div>
+                                        <div class="pm-field" style="--fc:var(--fc5,0)"><div class="pm-label">Mode of payment</div><div class="pm-input"><span>Online</span></div></div>
+                                        <div class="pm-btn pm-btn--press">Add</div>
+                                    </div>
+                                    <div class="pm-table">
+                                        <div class="pm-tr pm-th"><span>Date</span><span>Title</span><span>Mode</span><span>Price</span></div>
+                                        <div class="pm-rows">
+                                            <div class="pm-tr pm-new"><span>04 Oct 2026</span><span>Groceries</span><span>Online</span><span>₹1,240.00</span></div>
+                                            <div class="pm-shift">
+                                                @foreach (var (date, title, mode, price) in tableRows)
+                                                {
+                                                    <div class="pm-tr"><span>@date</span><span>@title</span><span>@mode</span><span>@price</span></div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pm-layer pm-cal">
+                            <div class="pm-cal__title">October 2026</div>
+                            <div class="pm-cal__btns"><span>« Previous</span><span>Today</span><span>Next »</span></div>
+                            <div class="pm-cal__grid">
+                                @foreach (var d in dow) { <div class="pm-dow">@d</div> }
+                                @for (var i = 0; i < 35; i++)
+                                {
+                                    var day = i - 3;
+                                    if (day < 1) { <div></div> }
+                                    else { <div class="@(day == 4 ? "is-today" : null)">@day</div> }
+                                }
+                            </div>
+                            <div class="pm-hit"></div>
+                        </div>
+
+                        <div class="pm-layer pm-an">
+                            <div class="pm-h1">Analytics</div>
+                            <div class="pm-tiles">
+                                <div class="pm-card"><div class="pm-muted">This month</div><div class="pm-val">₹13,720</div><div class="pm-muted">₹41,300 last month</div></div>
+                                <div class="pm-card"><div class="pm-muted">Daily average</div><div class="pm-val">₹3,430</div><div class="pm-muted">so far this month</div></div>
+                            </div>
+                            <div class="pm-card pm-mb">
+                                <div class="pm-h6">Monthly spending</div>
+                                <div class="pm-muted">Last 12 months</div>
+                                <div class="pm-chart">
+                                    @foreach (var (pos, label) in ticks)
+                                    {
+                                        <div class="pm-tick" style="bottom:@P(pos)%"><span>@label</span></div>
+                                    }
+                                    <div class="pm-bars">
+                                        @for (var i = 0; i < storyBars.Length; i++)
+                                        {
+                                            <div><div class="pm-bar @(i == storyBars.Length - 1 ? "is-current" : null)" style="--h:@P(storyBars[i])%; --i:@i"></div></div>
+                                        }
+                                    </div>
+                                    <div class="pm-tip"><strong>₹13,720.00</strong> October 2026</div>
+                                </div>
+                                <div class="pm-xaxis">@foreach (var m in months) { <span>@m</span> }</div>
+                            </div>
+                            <div class="pm-card">
+                                <div class="pm-h6">Payment mode</div>
+                                <div class="pm-muted">Share of all spending</div>
+                                <div class="pm-split"><div class="on" style="flex:313975"></div><div class="cash" style="flex:104245"></div></div>
+                                <div class="pm-legend">
+                                    <span><span class="pm-sw on"></span>Online <strong>₹3,13,975</strong> <span class="pm-muted">75%</span></span>
+                                    <span><span class="pm-sw cash"></span>Cash <strong>₹1,04,245</strong> <span class="pm-muted">25%</span></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pm-chip">Groceries <span>₹1,240.00</span></div>
+                        <div class="pm-backdrop"></div>
+                        <div class="pm-modal">
+                            <div class="pm-modal__head">04 Oct 2026</div>
+                            <div class="pm-li">
+                                <div>Auto fare <small>Cash</small><small class="blk">Office to home</small></div>
+                                <div class="pm-li__r">₹85.00<span class="pm-edit">Edit</span></div>
+                            </div>
+                            <div class="pm-li is-new">
+                                <div>Groceries <small>Online</small><small class="blk">Weekly vegetables and milk</small></div>
+                                <div class="pm-li__r">₹1,240.00<span class="pm-edit">Edit</span></div>
+                            </div>
+                            <div class="pm-modal__foot"><span class="pm-btn">Add expense</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="lp-mq">
+        <div class="lp-mq__head lp-pad lp-fade" data-reveal>
+            <h2 class="lp-h2 lp-mq__title">From chai to rent, <span class="lp-serif c-orange">it all counts.</span></h2>
+        </div>
+        <div class="lp-mq__rows" aria-hidden="true">
+            <div class="lp-mq__row lp-mq__row--a">
+                @foreach (var (t, date, mode, amount, tint) in chipsA)
+                {
+                    <div class="lp-chip t-@tint"><span class="lp-chip__sw @(mode == "Cash" ? "is-cash" : null)"></span><div class="lp-chip__body"><div class="lp-chip__t">@t</div><div class="lp-chip__m">@date · @mode</div></div><div class="lp-chip__a">@amount</div></div>
+                }
+            </div>
+            <div class="lp-mq__row lp-mq__row--b">
+                @foreach (var (t, date, mode, amount, tint) in chipsB)
+                {
+                    <div class="lp-chip t-@tint"><span class="lp-chip__sw @(mode == "Cash" ? "is-cash" : null)"></span><div class="lp-chip__body"><div class="lp-chip__t">@t</div><div class="lp-chip__m">@date · @mode</div></div><div class="lp-chip__a">@amount</div></div>
+                }
+            </div>
+        </div>
+    </section>
+
+    <section id="features" class="lp-features lp-pad">
+        <div class="lp-wrap">
+            <div class="lp-fhead lp-fade" data-reveal>
+                <div>
+                    <div class="lp-eyebrow">Features</div>
+                    <h2 class="lp-h2">Simple tools.<br /><span class="lp-serif">Clear answers.</span></h2>
+                </div>
+            </div>
+
+            <div class="lp-cards">
+                <div class="lp-card lp-card--wide c-sky lp-fade" data-reveal>
+                    <div class="lp-card__vis">
+                        <div class="fx-filters">
+                            <div class="fx-input is-focus">groceries</div>
+                            <div class="fx-input">All modes</div>
+                            <div class="fx-input">Price: high to low</div>
+                            <div class="fx-input fx-apply">Apply</div>
+                        </div>
+                        <div class="fx-table">
+                            <div class="fx-tr fx-th"><span>Date</span><span>Title</span><span>Mode</span><span>Price</span></div>
+                            <div class="fx-tr fx-in" style="--d:.35s"><span>19 Sep 2026</span><span>Groceries</span><span>Online</span><span>₹1,410.00</span></div>
+                            <div class="fx-tr fx-in" style="--d:.45s"><span>04 Oct 2026</span><span>Groceries</span><span>Online</span><span>₹1,240.00</span></div>
+                            <div class="fx-tr fx-in" style="--d:.55s"><span>27 Sep 2026</span><span>Groceries</span><span>Cash</span><span>₹865.00</span></div>
+                        </div>
+                    </div>
+                    <div>
+                        <h3>Find any expense</h3>
+                    </div>
+                </div>
+
+                <div class="lp-card c-peach lp-fade" data-reveal style="--d:.1s">
+                    <div class="lp-card__vis">
+                        <div class="fx-cal__title">October 2026</div>
+                        <div class="fx-cal">
+                            @foreach (var d in dow) { <span class="dow">@d</span> }
+                            @for (var i = 0; i < 35; i++)
+                            {
+                                var day = i - 3;
+                                <span class="d @(day == 4 ? "is-today" : null)">@(day >= 1 ? day.ToString() : "")</span>
+                            }
+                        </div>
+                    </div>
+                    <div>
+                        <h3>Your month on a calendar</h3>
+                    </div>
+                </div>
+
+                <div class="lp-card c-lilac lp-fade" data-reveal style="--d:.2s">
+                    <div class="lp-card__vis lp-card__vis--end">
+                        <div class="fx-week">
+                            <div class="gl" style="top:33%"></div>
+                            <div class="gl" style="top:66%"></div>
+                            @for (var i = 0; i < weekdays.Length; i++)
+                            {
+                                <div class="col"><div class="b @(i == 0 || i == 6 ? "is-peak" : null)" style="--h:@weekdays[i]%; --i:@i"></div></div>
+                            }
+                        </div>
+                        <div class="fx-days">@foreach (var d in dow) { <span>@d</span> }</div>
+                    </div>
+                    <div>
+                        <h3>Know your big days</h3>
+                    </div>
+                </div>
+
+                <div class="lp-card c-butter lp-fade" data-reveal>
+                    <div class="lp-card__vis lp-card__vis--center">
+                        <div class="fx-split-nums">
+                            <div><div class="fx-big">75%</div><div class="fx-key"><span class="ap-sw on"></span>Online</div></div>
+                            <div style="text-align:right"><div class="fx-big fx-big--sm">25%</div><div class="fx-key fx-key--end"><span class="ap-sw cash"></span>Cash</div></div>
+                        </div>
+                        <div class="fx-split"><div class="on"></div><div class="cash"></div></div>
+                    </div>
+                    <div>
+                        <h3>Online or cash</h3>
+                    </div>
+                </div>
+
+                <div class="lp-card c-mint lp-fade" data-reveal style="--d:.1s">
+                    <div class="lp-card__vis lp-card__vis--center" style="gap:0">
+                        <div class="fx-rank"><span class="n">01</span><div class="t">Rent<small>01 Oct 2026 · Online</small></div><span class="a">₹18,000.00</span></div>
+                        <div class="fx-rank"><span class="n">02</span><div class="t">Laptop repair<small>14 Sep 2026 · Online</small></div><span class="a">₹6,500.00</span></div>
+                        <div class="fx-rank"><span class="n">03</span><div class="t">Flight to Pune<small>08 Aug 2026 · Online</small></div><span class="a">₹4,820.00</span></div>
+                    </div>
+                    <div>
+                        <h3>Your biggest spends</h3>
+                    </div>
+                </div>
+
+                <div class="lp-card lp-card--wide c-navy lp-fade" data-reveal style="--d:.2s">
+                    <div class="c-navy__copy">
+                        <h3>Yours <span class="lp-serif">alone.</span></h3>
+                    </div>
+                    <div class="fx-login">
+                        <div class="fx-login__t">Login</div>
+                        <div class="lbl">Email</div>
+                        <div class="fx-input">you@example.com</div>
+                        <div class="lbl">Password</div>
+                        <div class="fx-input pw">••••••••••</div>
+                        <div class="fx-login__btn">Login</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="get-started" class="lp-cta lp-pad">
+        <div class="lp-cta__canvas"><canvas id="lp-cta-canvas"></canvas></div>
+        <div class="lp-cta__in" data-reveal>
+            <h2 class="lp-h2">
+                <span class="lp-rise"><span style="--d:.05s">Start with</span></span>
+                <span class="lp-rise"><span class="lp-serif" style="--d:.16s">today’s expenses<span class="c-peach">.</span></span></span>
+            </h2>
+            <div class="lp-ctas lp-fade" style="--d:.45s">
+                <a asp-controller="Account" asp-action="Register" class="lp-btn lp-btn--light">Create your account <span>→</span></a>
+                <a asp-controller="Account" asp-action="Login" class="lp-btn lp-btn--ghost">Login</a>
+            </div>
+        </div>
+        <footer class="lp-footer">
+            <span>&copy; 2026 - ExpenseTracker</span>
+            <nav>
+                <a href="#story">How it works</a>
+                <a asp-controller="Account" asp-action="Login">Login</a>
+                <a asp-controller="Account" asp-action="Register">Register</a>
+            </nav>
+        </footer>
+    </section>
+
+    <script src="~/js/landing.js" asp-append-version="true"></script>
+</body>
+</html>
