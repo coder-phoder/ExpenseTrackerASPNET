@@ -9,12 +9,16 @@ using ExpenseTracker.Models;
 
 namespace ExpenseTracker.Controllers;
 
-public class UserController(AppDbContext db) : Controller
+public class UserController(AppDbContext db, IConfiguration config) : Controller
 {
     private const int PageSize = 20;
 
     public IActionResult Index()
     {
+        if (User.IsInRole("Admin"))
+        {
+            return RedirectToAction("Index", "Admin");
+        }
         if (User.Identity?.IsAuthenticated == true)
         {
             return RedirectToAction(nameof(Dashboard));
@@ -44,7 +48,7 @@ public class UserController(AppDbContext db) : Controller
     public async Task<IActionResult> Profile(ProfileViewModel model)
     {
         var user = (await db.Users.FindAsync(CurrentUserId))!;
-        if (ModelState.IsValid && await db.Users.AnyAsync(u => u.Email == model.Email && u.Id != user.Id))
+        if (ModelState.IsValid && (AccountController.IsAdminEmail(config, model.Email) || await db.Users.AnyAsync(u => u.Email == model.Email && u.Id != user.Id)))
         {
             ModelState.AddModelError(nameof(model.Email), "Email is already registered.");
         }

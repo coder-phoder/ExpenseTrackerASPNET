@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ExpenseTracker.Data;
@@ -10,7 +12,15 @@ builder.Services.AddControllersWithViews(options => options.Filters.Add(new Auto
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(builder.Configuration.GetConnectionString("DefaultConnection"), new MySqlServerVersion(new Version(8, 0, 36))));
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options => options.LoginPath = "/Login");
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Login";
+        // "/" sends the admin to /Admin and a user to their dashboard, so a forbidden page never loops.
+        options.AccessDeniedPath = "/";
+    });
+// Plain [Authorize] means a signed-in user: the admin has no user id, so user pages are forbidden to it.
+builder.Services.AddAuthorizationBuilder()
+    .SetDefaultPolicy(new AuthorizationPolicyBuilder().RequireClaim(ClaimTypes.NameIdentifier).Build());
 
 var app = builder.Build();
 
