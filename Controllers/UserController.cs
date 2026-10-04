@@ -11,6 +11,8 @@ namespace ExpenseTracker.Controllers;
 
 public class UserController(AppDbContext db) : Controller
 {
+    private const int PageSize = 20;
+
     public IActionResult Index()
     {
         if (User.Identity?.IsAuthenticated == true)
@@ -101,7 +103,7 @@ public class UserController(AppDbContext db) : Controller
     }
 
     [Authorize]
-    public async Task<IActionResult> Expenses(int? edit, DateOnly? date, string? q, DateOnly? from, DateOnly? to, PaymentMode? mode, string? category, string? sort)
+    public async Task<IActionResult> Expenses(int? edit, DateOnly? date, string? q, DateOnly? from, DateOnly? to, PaymentMode? mode, string? category, string? sort, int page = 1)
     {
         var expense = edit == null
             ? new Expense { Date = date ?? DateOnly.FromDateTime(DateTime.Today) }
@@ -110,7 +112,7 @@ public class UserController(AppDbContext db) : Controller
         {
             return NotFound();
         }
-        return await ExpensesView(expense, q, from, to, mode, category, sort);
+        return await ExpensesView(expense, q, from, to, mode, category, sort, page);
     }
 
     [Authorize]
@@ -170,7 +172,7 @@ public class UserController(AppDbContext db) : Controller
         return Expense.DefaultCategories.Union(used, StringComparer.OrdinalIgnoreCase).Order().ToList();
     }
 
-    private async Task<IActionResult> ExpensesView(Expense expense, string? q = null, DateOnly? from = null, DateOnly? to = null, PaymentMode? mode = null, string? category = null, string? sort = null)
+    private async Task<IActionResult> ExpensesView(Expense expense, string? q = null, DateOnly? from = null, DateOnly? to = null, PaymentMode? mode = null, string? category = null, string? sort = null, int page = 1)
     {
         var expenses = db.Expenses.Where(e => e.UserId == CurrentUserId);
         if (!string.IsNullOrWhiteSpace(q))
@@ -200,6 +202,9 @@ public class UserController(AppDbContext db) : Controller
             "price_asc" => expenses.OrderBy(e => e.Price).ThenBy(e => e.Id),
             _ => expenses.OrderByDescending(e => e.Date).ThenByDescending(e => e.Id),
         };
-        return View(nameof(Expenses), new ExpensesViewModel(await expenses.ToListAsync(), expense, await CategoriesAsync()));
+        var pageCount = Math.Max(1, (await expenses.CountAsync() + PageSize - 1) / PageSize);
+        page = Math.Clamp(page, 1, pageCount);
+        var pageItems = await expenses.Skip((page - 1) * PageSize).Take(PageSize).ToListAsync();
+        return View(nameof(Expenses), new ExpensesViewModel(pageItems, expense, await CategoriesAsync(), Page: page, PageCount: pageCount));
     }
 }

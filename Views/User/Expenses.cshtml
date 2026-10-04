@@ -20,7 +20,7 @@
         </form>
     </div>
     <div class="col-md-8">
-        <form asp-action="Expenses" method="get" class="row g-2 mb-3">
+        <form asp-action="Expenses" method="get" id="filters" class="row g-2 mb-3">
             <div class="col-12 col-lg-4">
                 <input type="search" name="q" value="@filter["q"]" class="form-control" placeholder="Search title" aria-label="Search title" />
             </div>
@@ -99,6 +99,21 @@
                 </tbody>
             </table>
         </div>
+        @if (Model.PageCount > 1)
+        {
+            @* Page buttons submit the filter form, so search, filters and sort carry over. *@
+            <nav aria-label="Expense pages">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item @(Model.Page == 1 ? "disabled" : null)">
+                        <button type="submit" form="filters" name="page" value="@(Model.Page - 1)" class="page-link" disabled="@(Model.Page == 1)">Previous</button>
+                    </li>
+                    <li class="page-item active" aria-current="page"><span class="page-link">Page @Model.Page of @Model.PageCount</span></li>
+                    <li class="page-item @(Model.Page == Model.PageCount ? "disabled" : null)">
+                        <button type="submit" form="filters" name="page" value="@(Model.Page + 1)" class="page-link" disabled="@(Model.Page == Model.PageCount)">Next</button>
+                    </li>
+                </ul>
+            </nav>
+        }
     </div>
 </div>
 
