@@ -33,7 +33,31 @@ public class UserController(AppDbContext db) : Controller
     [Authorize]
     public async Task<IActionResult> Profile()
     {
-        return View(await db.Users.FindAsync(CurrentUserId));
+        var user = (await db.Users.FindAsync(CurrentUserId))!;
+        return View(new ProfileViewModel { Name = user.Name, Email = user.Email });
+    }
+
+    [Authorize]
+    [HttpPost]
+    public async Task<IActionResult> Profile(ProfileViewModel model)
+    {
+        var user = (await db.Users.FindAsync(CurrentUserId))!;
+        if (ModelState.IsValid && await db.Users.AnyAsync(u => u.Email == model.Email && u.Id != user.Id))
+        {
+            ModelState.AddModelError(nameof(model.Email), "Email is already registered.");
+        }
+        if (!ModelState.IsValid)
+        {
+            // The page shows the saved values; the modal's inputs re-show what was typed (from ModelState) with the errors.
+            return View(new ProfileViewModel { Name = user.Name, Email = user.Email });
+        }
+
+        user.Name = model.Name;
+        user.Email = model.Email;
+        await db.SaveChangesAsync();
+        await AccountController.SignInAsync(HttpContext, user);
+        TempData["Success"] = "Profile updated.";
+        return RedirectToAction(nameof(Profile));
     }
 
     [Authorize]

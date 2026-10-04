@@ -34,7 +34,7 @@ public class AccountController(AppDbContext db) : Controller
             return View(model);
         }
 
-        await SignInAsync(user);
+        await SignInAsync(HttpContext, user);
         return RedirectToAction("Dashboard", "User");
     }
 
@@ -61,7 +61,7 @@ public class AccountController(AppDbContext db) : Controller
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        await SignInAsync(user);
+        await SignInAsync(HttpContext, user);
         return RedirectToAction("Dashboard", "User");
     }
 
@@ -72,13 +72,14 @@ public class AccountController(AppDbContext db) : Controller
         return RedirectToAction("Index", "User");
     }
 
-    private Task SignInAsync(User user)
+    // Also called after a profile edit, so the cookie picks up the new name.
+    internal static Task SignInAsync(HttpContext http, User user)
     {
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.Name)
         };
-        return HttpContext.SignInAsync(new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)));
+        return http.SignInAsync(new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)));
     }
 }
