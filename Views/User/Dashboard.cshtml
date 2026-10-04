@@ -1,7 +1,42 @@
+@model (decimal MonthTotal, List<Expense> Recent)
 @{
     ViewData["Title"] = "Dashboard";
 }
 
-<h1>Welcome, @User.Identity?.Name</h1>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="mb-0">Welcome, @User.Identity?.Name</h1>
+    <a asp-action="Expenses" class="btn btn-primary">Add expense</a>
+</div>
 
-<p><a asp-action="Expenses" class="btn btn-primary">My expenses</a></p>
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="small text-body-secondary">Spent in @DateTime.Today.ToString("MMMM yyyy")</div>
+                <div class="fs-3 fw-semibold">@Model.MonthTotal.ToString("C")</div>
+                <a asp-action="Analytics" class="small">View analytics</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between">
+                <span>Recent expenses</span>
+                <a asp-action="Expenses" class="small">View all</a>
+            </div>
+            <ul class="list-group list-group-flush">
+                @foreach (var e in Model.Recent)
+                {
+                    <li class="list-group-item d-flex justify-content-between gap-3">
+                        <span>@e.Title <span class="small text-body-secondary text-nowrap">· @e.Date.ToString("dd MMM yyyy")</span></span>
+                        <span class="text-nowrap">@e.Price?.ToString("C")</span>
+                    </li>
+                }
+                @if (Model.Recent.Count == 0)
+                {
+                    <li class="list-group-item text-body-secondary">No expenses yet.</li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>

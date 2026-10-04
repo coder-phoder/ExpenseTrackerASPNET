@@ -20,9 +20,14 @@ public class UserController(AppDbContext db) : Controller
     }
 
     [Authorize]
-    public IActionResult Dashboard()
+    public async Task<IActionResult> Dashboard()
     {
-        return View();
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var first = new DateOnly(today.Year, today.Month, 1);
+        var expenses = db.Expenses.Where(e => e.UserId == CurrentUserId);
+        var monthTotal = await expenses.Where(e => e.Date >= first && e.Date < first.AddMonths(1)).SumAsync(e => e.Price) ?? 0;
+        var recent = await expenses.OrderByDescending(e => e.Date).ThenByDescending(e => e.Id).Take(5).ToListAsync();
+        return View((monthTotal, recent));
     }
 
     [Authorize]
