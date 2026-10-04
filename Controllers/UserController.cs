@@ -51,7 +51,7 @@ public class UserController(AppDbContext db) : Controller
     }
 
     [Authorize]
-    public async Task<IActionResult> Expenses(int? edit, DateOnly? date)
+    public async Task<IActionResult> Expenses(int? edit, DateOnly? date, string? q, DateOnly? from, DateOnly? to, PaymentMode? mode, string? sort)
     {
         var expense = edit == null
             ? new Expense { Date = date ?? DateOnly.FromDateTime(DateTime.Today) }
@@ -60,7 +60,7 @@ public class UserController(AppDbContext db) : Controller
         {
             return NotFound();
         }
-        return await ExpensesView(expense);
+        return await ExpensesView(expense, q, from, to, mode, sort);
     }
 
     [Authorize]
@@ -105,12 +105,32 @@ public class UserController(AppDbContext db) : Controller
     private IActionResult BackTo(string? returnUrl) =>
         Url.IsLocalUrl(returnUrl) ? Redirect(returnUrl) : RedirectToAction(nameof(Expenses));
 
-    private async Task<IActionResult> ExpensesView(Expense expense)
+    private async Task<IActionResult> ExpensesView(Expense expense, string? q = null, DateOnly? from = null, DateOnly? to = null, PaymentMode? mode = null, string? sort = null)
     {
-        var expenses = await db.Expenses
-            .Where(e => e.UserId == CurrentUserId)
-            .OrderByDescending(e => e.Date).ThenByDescending(e => e.Id)
-            .ToListAsync();
-        return View(nameof(Expenses), new ExpensesViewModel(expenses, expense));
+        var expenses = db.Expenses.Where(e => e.UserId == CurrentUserId);
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            expenses = expenses.Where(e => e.Title.Contains(q.Trim()));
+        }
+        if (from != null)
+        {
+            expenses = expenses.Where(e => e.Date >= from.Value);
+        }
+        if (to != null)
+        {
+            expenses = expenses.Where(e => e.Date <= to.Value);
+        }
+        if (mode != null)
+        {
+            expenses = expenses.Where(e => e.PaymentMode == mode.Value);
+        }
+        expenses = sort switch
+        {
+            "date_asc" => expenses.OrderBy(e => e.Date).ThenBy(e => e.Id),
+            "price_desc" => expenses.OrderByDescending(e => e.Price).ThenByDescending(e => e.Id),
+            "price_asc" => expenses.OrderBy(e => e.Price).ThenBy(e => e.Id),
+            _ => expenses.OrderByDescending(e => e.Date).ThenByDescending(e => e.Id),
+        };
+        return View(nameof(Expenses), new ExpensesViewModel(await expenses.ToListAsync(), expense));
     }
 }
