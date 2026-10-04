@@ -65,14 +65,14 @@
                 {
                     <li class="list-group-item d-flex justify-content-between align-items-center" data-date="@e.Date.ToString("yyyy-MM-dd")">
                         <div>
-                            @e.Title <small class="text-muted">@e.PaymentMode.DisplayName()</small>
+                            @e.Title <small class="text-muted">@e.Category · @e.PaymentMode.DisplayName()</small>
                             <div class="small text-muted">@e.Description</div>
                         </div>
                         <div class="text-nowrap">
                             @e.Price?.ToString("C")
                             <button type="button" class="btn btn-sm btn-outline-primary ms-2" data-bs-toggle="modal" data-bs-target="#expenseModal"
                                     data-id="@e.Id" data-title="@e.Title" data-price="@e.Price" data-date="@e.Date.ToString("yyyy-MM-dd")"
-                                    data-paymentmode="@((int)e.PaymentMode)" data-description="@e.Description">Edit</button>
+                                    data-paymentmode="@((int)e.PaymentMode)" data-category="@e.Category" data-description="@e.Description">Edit</button>
                         </div>
                     </li>
                 }
@@ -94,7 +94,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <partial name="_ExpenseFields" for="Expense" />
+                <partial name="_ExpenseFields" />
                 <input type="hidden" name="returnUrl" />
             </div>
             <div class="modal-footer">
@@ -131,7 +131,7 @@
         expenseModal.addEventListener('show.bs.modal', e => {
             const d = e.relatedTarget.dataset;
             form.reset();
-            for (const name of ['Id', 'Title', 'Price', 'Date', 'PaymentMode', 'Description']) {
+            for (const name of ['Id', 'Title', 'Price', 'Category', 'Date', 'PaymentMode', 'Description']) {
                 form.elements['Expense.' + name].value = d[name.toLowerCase()] ?? '';
             }
             form.elements.returnUrl.value = deleteForm.elements.returnUrl.value = location.pathname + '?day=' + d.date;

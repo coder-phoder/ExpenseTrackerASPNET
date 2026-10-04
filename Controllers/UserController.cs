@@ -77,11 +77,11 @@ public class UserController(AppDbContext db) : Controller
             .Where(e => e.UserId == CurrentUserId && e.Date >= first && e.Date < first.AddMonths(1))
             .OrderBy(e => e.Id)
             .ToListAsync();
-        return View(new ExpensesViewModel(expenses, new Expense(), first));
+        return View(new ExpensesViewModel(expenses, new Expense(), await CategoriesAsync(), first));
     }
 
     [Authorize]
-    public async Task<IActionResult> Expenses(int? edit, DateOnly? date, string? q, DateOnly? from, DateOnly? to, PaymentMode? mode, string? sort)
+    public async Task<IActionResult> Expenses(int? edit, DateOnly? date, string? q, DateOnly? from, DateOnly? to, PaymentMode? mode, string? category, string? sort)
     {
         var expense = edit == null
             ? new Expense { Date = date ?? DateOnly.FromDateTime(DateTime.Today) }
@@ -90,7 +90,7 @@ public class UserController(AppDbContext db) : Controller
         {
             return NotFound();
         }
-        return await ExpensesView(expense, q, from, to, mode, sort);
+        return await ExpensesView(expense, q, from, to, mode, category, sort);
     }
 
     [Authorize]
@@ -105,6 +105,10 @@ public class UserController(AppDbContext db) : Controller
         {
             return await ExpensesView(expense);
         }
+
+        // Reuse an existing spelling ("food" -> "Food") so one category never splits in two.
+        var category = expense.Category.Trim();
+        expense.Category = (await CategoriesAsync()).FirstOrDefault(c => c.Equals(category, StringComparison.OrdinalIgnoreCase)) ?? category;
 
         TempData["Success"] = expense.Id == 0 ? "Expense added." : "Expense updated.";
         expense.UserId = CurrentUserId;
@@ -137,7 +141,13 @@ public class UserController(AppDbContext db) : Controller
     private IActionResult BackTo(string? returnUrl) =>
         Url.IsLocalUrl(returnUrl) ? Redirect(returnUrl) : RedirectToAction(nameof(Expenses));
 
-    private async Task<IActionResult> ExpensesView(Expense expense, string? q = null, DateOnly? from = null, DateOnly? to = null, PaymentMode? mode = null, string? sort = null)
+    private async Task<List<string>> CategoriesAsync()
+    {
+        var used = await db.Expenses.Where(e => e.UserId == CurrentUserId).Select(e => e.Category).Distinct().ToListAsync();
+        return Expense.DefaultCategories.Union(used, StringComparer.OrdinalIgnoreCase).Order().ToList();
+    }
+
+    private async Task<IActionResult> ExpensesView(Expense expense, string? q = null, DateOnly? from = null, DateOnly? to = null, PaymentMode? mode = null, string? category = null, string? sort = null)
     {
         var expenses = db.Expenses.Where(e => e.UserId == CurrentUserId);
         if (!string.IsNullOrWhiteSpace(q))
@@ -156,6 +166,10 @@ public class UserController(AppDbContext db) : Controller
         {
             expenses = expenses.Where(e => e.PaymentMode == mode.Value);
         }
+        if (!string.IsNullOrEmpty(category))
+        {
+            expenses = expenses.Where(e => e.Category == category);
+        }
         expenses = sort switch
         {
             "date_asc" => expenses.OrderBy(e => e.Date).ThenBy(e => e.Id),
@@ -163,6 +177,6 @@ public class UserController(AppDbContext db) : Controller
             "price_asc" => expenses.OrderBy(e => e.Price).ThenBy(e => e.Id),
             _ => expenses.OrderByDescending(e => e.Date).ThenByDescending(e => e.Id),
         };
-        return View(nameof(Expenses), new ExpensesViewModel(await expenses.ToListAsync(), expense));
+        return View(nameof(Expenses), new ExpensesViewModel(await expenses.ToListAsync(), expense, await CategoriesAsync()));
     }
 }

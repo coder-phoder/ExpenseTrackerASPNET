@@ -1,3 +1,3 @@
 namespace ExpenseTracker.Models;
 
-public record ExpensesViewModel(List<Expense> Expenses, Expense Expense, DateOnly Month = default);
+public record ExpensesViewModel(List<Expense> Expenses, Expense Expense, IReadOnlyList<string> Categories, DateOnly Month = default);

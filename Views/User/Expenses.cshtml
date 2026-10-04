@@ -11,7 +11,7 @@
     <div class="col-md-4">
         <h4>@(editing ? "Edit expense" : "Add expense")</h4>
         <form asp-action="Expenses" method="post">
-            <partial name="_ExpenseFields" for="Expense" />
+            <partial name="_ExpenseFields" />
             <button type="submit" class="btn btn-primary">@(editing ? "Save" : "Add")</button>
             @if (editing)
             {
@@ -24,13 +24,13 @@
             <div class="col-12 col-lg-4">
                 <input type="search" name="q" value="@filter["q"]" class="form-control" placeholder="Search title" aria-label="Search title" />
             </div>
-            <div class="col-6 col-lg">
+            <div class="col-6 col-lg-4">
                 <input type="date" name="from" value="@filter["from"]" class="form-control" aria-label="From date" title="From date" />
             </div>
-            <div class="col-6 col-lg">
+            <div class="col-6 col-lg-4">
                 <input type="date" name="to" value="@filter["to"]" class="form-control" aria-label="To date" title="To date" />
             </div>
-            <div class="col-6 col-lg">
+            <div class="col-6 col-lg-4">
                 <select name="mode" class="form-select" aria-label="Payment mode">
                     <option value="">All modes</option>
                     @foreach (var m in Enum.GetValues<PaymentMode>())
@@ -39,7 +39,16 @@
                     }
                 </select>
             </div>
-            <div class="col-6 col-lg">
+            <div class="col-6 col-lg-4">
+                <select name="category" class="form-select" aria-label="Category">
+                    <option value="">All categories</option>
+                    @foreach (var c in Model.Categories)
+                    {
+                        <option selected="@(filter["category"] == c)">@c</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-lg-4">
                 <select name="sort" class="form-select" aria-label="Sort by">
                     <option value="">Newest first</option>
                     <option value="date_asc" selected="@(filter["sort"] == "date_asc")">Oldest first</option>
@@ -47,7 +56,7 @@
                     <option value="price_asc" selected="@(filter["sort"] == "price_asc")">Price: low to high</option>
                 </select>
             </div>
-            <div class="col-12 col-lg-auto">
+            <div class="col-12">
                 <button type="submit" class="btn btn-outline-primary">Apply</button>
                 <a asp-action="Expenses" class="btn btn-link">Clear</a>
             </div>
@@ -58,6 +67,7 @@
                     <tr>
                         <th>Date</th>
                         <th>Title</th>
+                        <th>Category</th>
                         <th>Description</th>
                         <th>Mode</th>
                         <th class="text-end">Price</th>
@@ -70,6 +80,7 @@
                         <tr>
                             <td>@e.Date.ToString("dd MMM yyyy")</td>
                             <td>@e.Title</td>
+                            <td>@e.Category</td>
                             <td>@e.Description</td>
                             <td>@e.PaymentMode.DisplayName()</td>
                             <td class="text-end">@e.Price?.ToString("C")</td>
@@ -83,7 +94,7 @@
                     }
                     @if (Model.Expenses.Count == 0)
                     {
-                        <tr><td colspan="6" class="text-muted">No expenses found.</td></tr>
+                        <tr><td colspan="7" class="text-muted">No expenses found.</td></tr>
                     }
                 </tbody>
             </table>

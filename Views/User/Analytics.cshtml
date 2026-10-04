@@ -30,6 +30,9 @@
     var modes = Enum.GetValues<PaymentMode>()
         .Select(p => (Name: p.DisplayName(), Color: $"var(--series-{(int)p + 1})", Amount: Spent(e => e.PaymentMode == p)))
         .Where(m => m.Amount > 0).ToArray();
+    var categories = Model.GroupBy(e => e.Category)
+        .Select(g => (Name: g.Key, Amount: g.Sum(e => e.Price ?? 0)))
+        .OrderByDescending(c => c.Amount).ToArray();
     var months = Enumerable.Range(-11, 12).Select(i => thisMonth.AddMonths(i))
         .Select(m => (m.ToString("MMM"), m.ToString("MMMM yyyy"), InMonth(m))).ToArray();
     var weekdays = Enum.GetValues<DayOfWeek>()
@@ -130,7 +133,24 @@
         </div>
     </div>
 
-    <div class="col-lg-6">
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h6 mb-0">By category</h2>
+                <p class="small text-body-secondary">All time</p>
+                @foreach (var (name, amount) in categories)
+                {
+                    <div class="d-flex justify-content-between gap-2 small">
+                        <span>@name</span>
+                        <span class="num text-nowrap">@amount.ToString("C0") <span class="text-body-secondary">@((amount / total).ToString("P0"))</span></span>
+                    </div>
+                    <div class="hbar mb-2" aria-hidden="true"><div class="bar" style="--w: @(amount / categories[0].Amount * 100)%"></div></div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
         <div class="card h-100">
             <div class="card-body">
                 <h2 class="h6 mb-0">By day of week</h2>
@@ -140,7 +160,7 @@
         </div>
     </div>
 
-    <div class="col-lg-6">
+    <div class="col-lg-4">
         <div class="card h-100">
             <div class="card-body">
                 <h2 class="h6">Largest expenses</h2>

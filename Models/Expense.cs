@@ -45,4 +45,10 @@ public class Expense
 
     [Display(Name = "Mode of payment")]
     public PaymentMode PaymentMode { get; set; }
+
+    // Free text: the built-ins below are suggestions; anything else typed becomes a user-defined category.
+    [Required, StringLength(50)]
+    public string Category { get; set; } = "";
+
+    public static readonly string[] DefaultCategories = ["Bills", "Entertainment", "Food", "Health", "Shopping", "Travel", "Other"];
 }

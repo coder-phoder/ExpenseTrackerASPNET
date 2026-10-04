@@ -1,27 +1,38 @@
-@model Expense
+@model ExpensesViewModel
 
-<input type="hidden" asp-for="Id" />
+<input type="hidden" asp-for="Expense.Id" />
 <div class="mb-3">
-    <label asp-for="Title" class="form-label"></label>
-    <input asp-for="Title" class="form-control" />
-    <span asp-validation-for="Title" class="text-danger"></span>
+    <label asp-for="Expense.Title" class="form-label"></label>
+    <input asp-for="Expense.Title" class="form-control" />
+    <span asp-validation-for="Expense.Title" class="text-danger"></span>
 </div>
 <div class="mb-3">
-    <label asp-for="Price" class="form-label"></label>
-    <input asp-for="Price" class="form-control" />
-    <span asp-validation-for="Price" class="text-danger"></span>
+    <label asp-for="Expense.Price" class="form-label"></label>
+    <input asp-for="Expense.Price" class="form-control" />
+    <span asp-validation-for="Expense.Price" class="text-danger"></span>
 </div>
 <div class="mb-3">
-    <label asp-for="Date" class="form-label"></label>
-    <input asp-for="Date" class="form-control" />
-    <span asp-validation-for="Date" class="text-danger"></span>
+    <label asp-for="Expense.Category" class="form-label"></label>
+    <input asp-for="Expense.Category" class="form-control" list="categoryList" autocomplete="off" placeholder="Pick one or type a new one" />
+    <datalist id="categoryList">
+        @foreach (var c in Model.Categories)
+        {
+            <option value="@c"></option>
+        }
+    </datalist>
+    <span asp-validation-for="Expense.Category" class="text-danger"></span>
 </div>
 <div class="mb-3">
-    <label asp-for="PaymentMode" class="form-label"></label>
-    <select asp-for="PaymentMode" asp-items="Html.GetEnumSelectList<PaymentMode>()" class="form-select"></select>
+    <label asp-for="Expense.Date" class="form-label"></label>
+    <input asp-for="Expense.Date" class="form-control" />
+    <span asp-validation-for="Expense.Date" class="text-danger"></span>
 </div>
 <div class="mb-3">
-    <label asp-for="Description" class="form-label"></label>
-    <textarea asp-for="Description" class="form-control"></textarea>
-    <span asp-validation-for="Description" class="text-danger"></span>
+    <label asp-for="Expense.PaymentMode" class="form-label"></label>
+    <select asp-for="Expense.PaymentMode" asp-items="Html.GetEnumSelectList<PaymentMode>()" class="form-select"></select>
+</div>
+<div class="mb-3">
+    <label asp-for="Expense.Description" class="form-label"></label>
+    <textarea asp-for="Expense.Description" class="form-control"></textarea>
+    <span asp-validation-for="Expense.Description" class="text-danger"></span>
 </div>
