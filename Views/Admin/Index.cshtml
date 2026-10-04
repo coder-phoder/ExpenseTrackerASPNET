@@ -1,42 +1,356 @@
+@using System.Globalization
+@using System.Text.Json
 @using ExpenseTracker.Controllers
-@model List<UserSummary>
+@model AdminOverview
 @{
-    ViewData["Title"] = "Users";
+    Layout = null;
+    var today = Model.Today;
+    var users = Model.Users;
+    var days = Model.Days;
+    var dates = CultureInfo.CurrentCulture.DateTimeFormat;
+
+    string Plural(int n, string word) => $"{n:N0} {word}{(n == 1 ? "" : "s")}";
+    string Pct(decimal part, decimal whole) => whole == 0 ? "0%" : (part / whole * 100).ToString("0.##", CultureInfo.InvariantCulture) + "%";
+    string Initials(string name) => string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpperInvariant(w[0])));
+    string Ago(DateOnly d) => (today.DayNumber - d.DayNumber) switch
+    {
+        0 => "Today",
+        1 => "Yesterday",
+        var n and > 1 and < 30 => $"{n} days ago",
+        _ => d.ToString("d MMM yyyy")
+    };
+    // Active means an expense dated in the last 30 days (a future-dated one counts too).
+    string Status(UserSummary u) => u.LastExpense is not { } d ? "none" : today.DayNumber - d.DayNumber < 30 ? "active" : "inactive";
+    string[] tints = ["sky", "peach", "mint", "lilac", "butter"];
+    // The dark-theme series from site.css (validated): each mode keeps the colour it has on the users' Analytics page.
+    string[] modeColors = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300"];
+
+    var total = users.Sum(u => u.TotalSpent);
+    var expenseCount = users.Sum(u => u.ExpenseCount);
+    var active = users.Count(u => Status(u) == "active");
+    var notStarted = users.Count(u => u.ExpenseCount == 0);
+    var topSpend = users.Select(u => u.TotalSpent).DefaultIfEmpty().Max();
+    var monthStart = new DateOnly(today.Year, today.Month, 1);
+    decimal Spent(DateOnly from, DateOnly to) => days.Values.Where(d => d.Date >= from && d.Date < to).Sum(d => d.Amount);
+    var monthAmount = Spent(monthStart, monthStart.AddMonths(1));
+
+    var weeks = (today.DayNumber - Model.Start.DayNumber) / 7 + 1;
+    var busiest = days.Values.OrderByDescending(d => d.Expenses).ThenByDescending(d => d.Date).FirstOrDefault();
+    int Level(int n) => n == 0 ? 0 : (int)Math.Ceiling(4.0 * n / busiest!.Expenses);
+    var byWeekday = Enumerable.Range(0, 7).Select(i => days.Values.Where(d => (int)d.Date.DayOfWeek == i).Sum(d => d.Expenses)).ToArray();
+    var peak = Array.IndexOf(byWeekday, byWeekday.Max());
+    // A streak still counts when today has nothing logged yet.
+    var streak = 0;
+    for (var d = days.ContainsKey(today) ? today : today.AddDays(-1); days.ContainsKey(d); d = d.AddDays(-1)) streak++;
+
+    // The hero's background columns: one per day, most recent on the right. 90 days covers the widest screens.
+    var pulse = Enumerable.Range(-89, 90).Select(i => today.AddDays(i))
+        .Select(d => new object[] { days.GetValueOrDefault(d)?.Expenses ?? 0, d.ToString("ddd d MMM") });
 }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin overview - ExpenseTracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/css/landing.css" asp-append-version="true" />
+    <noscript><style>[data-reveal] { --r: 1 !important; }</style></noscript>
+</head>
+<body class="lp ad" data-bg="columns">
 
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <h1 class="mb-0">Users</h1>
-    <span class="text-body-secondary">@Model.Count registered</span>
-</div>
+    <nav class="lp-nav">
+        <div class="lp-nav__in lp-wrap lp-pad">
+            <a href="#top" class="lp-brand"><span class="lp-mark"><i></i><i></i><i></i></span><span class="ad-brand-name">ExpenseTracker</span><span class="ad-tag">Admin</span></a>
+            <div class="lp-nav__links">
+                <a href="#activity" class="lp-nav__link">Activity</a>
+                <a href="#people" class="lp-nav__link">People</a>
+                <a href="#spending" class="lp-nav__link">Spending</a>
+                <form asp-controller="Account" asp-action="Logout" method="post">
+                    <button type="submit" class="lp-nav__cta ad-logout">Logout</button>
+                </form>
+            </div>
+        </div>
+        <div class="lp-progress"></div>
+    </nav>
 
-<div class="table-responsive">
-    <table class="table table-hover align-middle">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th class="text-end">Expenses</th>
-                <th class="text-end">Total spent</th>
-                <th>Last expense</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var u in Model)
-            {
-                <tr>
-                    <td>@u.Id</td>
-                    <td>@u.Name</td>
-                    <td>@u.Email</td>
-                    <td class="text-end">@u.ExpenseCount</td>
-                    <td class="text-end text-nowrap">@u.TotalSpent.ToString("C")</td>
-                    <td class="text-nowrap">@(u.LastExpense?.ToString("dd MMM yyyy") ?? "—")</td>
-                </tr>
-            }
-            @if (Model.Count == 0)
-            {
-                <tr><td colspan="6" class="text-body-secondary">No users yet.</td></tr>
-            }
-        </tbody>
-    </table>
-</div>
+    <section id="top" class="lp-hero lp-pad ad-hero">
+        <div class="lp-hero__canvas"><canvas id="lp-hero-canvas" data-days="@JsonSerializer.Serialize(pulse)"></canvas></div>
+        <div class="lp-hero__wash"></div>
+
+        <div class="lp-hero__copy">
+            <div class="lp-pill lp-fade" data-reveal>
+                <span class="lp-pill__rupee">₹</span>
+                <span>@today.ToString("dddd, d MMMM yyyy")</span>
+            </div>
+            <h1 class="lp-h1 ad-h1" data-reveal>
+                <span class="lp-rise"><span style="--d:.05s" data-countup="@Math.Round(total)" data-format="money">@total.ToString("C0")</span></span>
+                <span class="lp-rise"><span class="lp-serif c-blue" style="--d:.16s">tracked so far<span class="c-orange">.</span></span></span>
+            </h1>
+            <p class="lp-lede lp-fade" data-reveal style="--d:.3s">Everything people have logged in ExpenseTracker, across every account.</p>
+        </div>
+
+        <div class="ad-kpis lp-fade" data-reveal style="--d:.42s">
+            <div class="t-sky"><span>Users</span><strong data-countup="@users.Count">@users.Count.ToString("N0")</strong>
+                <small>@(users.Count == 0 ? "No one has registered yet" : notStarted == 0 ? "All have logged an expense" : $"{notStarted:N0} yet to log an expense")</small></div>
+            <div class="t-mint"><span>Active users</span><strong data-countup="@active">@active.ToString("N0")</strong>
+                <small>@(users.Count == 0 ? "Expense in the last 30 days" : $"{(decimal)active / users.Count:P0} of users, last 30 days")</small></div>
+            <div class="t-peach"><span>Expenses</span><strong data-countup="@expenseCount">@expenseCount.ToString("N0")</strong>
+                <small>@days.Values.Where(d => d.Date >= monthStart).Sum(d => d.Expenses).ToString("N0") this month</small></div>
+            <div class="t-lilac"><span>This month</span><strong data-countup="@Math.Round(monthAmount)" data-format="money">@monthAmount.ToString("C0")</strong>
+                <small>@Spent(monthStart.AddMonths(-1), monthStart).ToString("C0") last month</small></div>
+        </div>
+        <p class="ad-caption lp-fade" data-reveal style="--d:.55s">The columns behind this page are real: one per day of expenses logged, today on the right.</p>
+    </section>
+
+    <section id="activity" class="ad-section ad-activity lp-pad">
+        <div class="lp-wrap">
+            <div class="ad-head lp-fade" data-reveal>
+                <div class="lp-eyebrow">Activity</div>
+                <h2 class="lp-h2 ad-h2">Every day, <span class="lp-serif c-blue">at a glance.</span></h2>
+            </div>
+
+            <div class="ad-glass lp-fade" data-reveal>
+                <div class="ad-glass__head">
+                    <p>Expenses by date across all users, last 12 months</p>
+                    @if (busiest is not null)
+                    {
+                        <div class="ad-legend" aria-hidden="true">0 @for (var l = 0; l <= 4; l++) { <i class="lv@(l)"></i> } @busiest.Expenses a day</div>
+                    }
+                </div>
+                @* Hidden from screen readers: the table below carries the same counts. *@
+                <div class="ad-heat-scroll" aria-hidden="true">
+                    <div class="ad-heat" style="--weeks: @weeks">
+                        <div class="ad-heat__months">
+                            @for (var w = 0; w < weeks; w++)
+                            {
+                                // A week holds the 1st of its Saturday's month when that Saturday is day 1-7.
+                                var saturday = Model.Start.AddDays(w * 7 + 6);
+                                if (saturday.Day <= 7 && saturday.AddDays(1 - saturday.Day) <= today)
+                                {
+                                    <span style="grid-column: @(w + 1)">@saturday.ToString("MMM")</span>
+                                }
+                            }
+                        </div>
+                        <div class="ad-heat__days">
+                            @for (var i = 0; i < 7; i++) { <span>@(i % 2 == 1 ? dates.AbbreviatedDayNames[i] : "")</span> }
+                        </div>
+                        <div class="ad-heat__grid">
+                            @for (var d = Model.Start; d <= today; d = d.AddDays(1))
+                            {
+                                var a = days.GetValueOrDefault(d);
+                                <div class="ad-hit lv@(Level(a?.Expenses ?? 0))"><div class="ad-tip"><strong>@(a is null ? "No expenses" : Plural(a.Expenses, "expense"))</strong>@(a is null ? "" : " by " + Plural(a.Users, "user")) on @d.ToString("ddd d MMM yyyy")</div></div>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <details class="ad-details">
+                    <summary>Show as table</summary>
+                    <div class="ad-scroll">
+                        <table class="ad-mini">
+                            <thead>
+                                <tr>
+                                    <th>Week of</th>
+                                    @foreach (var name in dates.AbbreviatedDayNames) { <th class="r">@name</th> }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (var w = 0; w < weeks; w++)
+                                {
+                                    var weekStart = Model.Start.AddDays(w * 7);
+                                    <tr>
+                                        <th scope="row">@weekStart.ToString("d MMM yyyy")</th>
+                                        @for (var i = 0; i < 7; i++)
+                                        {
+                                            var d = weekStart.AddDays(i);
+                                            <td class="r num">@(d > today ? "" : (days.GetValueOrDefault(d)?.Expenses ?? 0).ToString("N0"))</td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+            </div>
+
+            <div class="lp-cards ad-insights">
+                <div class="lp-card c-peach lp-fade" data-reveal>
+                    <div class="lp-card__vis lp-card__vis--center">
+                        <div class="ad-big ad-big--peach">@(busiest?.Date.ToString("ddd d MMM") ?? "None yet")</div>
+                        <div class="ad-note">@(busiest is null ? "No expenses in the last 12 months" : $"{Plural(busiest.Expenses, "expense")} by {Plural(busiest.Users, "user")}")</div>
+                    </div>
+                    <div><h3>Busiest day</h3></div>
+                </div>
+
+                <div class="lp-card c-lilac lp-fade" data-reveal style="--d:.1s">
+                    <div class="lp-card__vis lp-card__vis--end">
+                        <div class="fx-week">
+                            <div class="gl" style="top:33%"></div>
+                            <div class="gl" style="top:66%"></div>
+                            @for (var i = 0; i < 7; i++)
+                            {
+                                <div class="col ad-hit"><div class="b @(i == peak && byWeekday[i] > 0 ? "is-peak" : null)" style="--h:@Pct(byWeekday[i], byWeekday[peak]); --i:@i"></div><div class="ad-tip"><strong>@Plural(byWeekday[i], "expense")</strong> on @(dates.DayNames[i])s</div></div>
+                            }
+                        </div>
+                        <div class="fx-days">@foreach (var name in dates.AbbreviatedDayNames) { <span>@name</span> }</div>
+                    </div>
+                    <div><h3>@(byWeekday[peak] > 0 ? $"{dates.DayNames[peak]}s are busiest" : "By day of the week")</h3></div>
+                </div>
+
+                <div class="lp-card c-mint lp-fade" data-reveal style="--d:.2s">
+                    <div class="lp-card__vis lp-card__vis--center">
+                        <div class="ad-big ad-big--mint">@streak</div>
+                        <div class="ad-note">@(streak == 1 ? "day" : "days") in a row with an expense</div>
+                    </div>
+                    <div><h3>Current streak</h3></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="people" class="ad-section lp-pad">
+        <div class="lp-wrap">
+            <div class="ad-head ad-head--row lp-fade" data-reveal>
+                <div>
+                    <div class="lp-eyebrow">People</div>
+                    <h2 class="lp-h2 ad-h2">Who's <span class="lp-serif c-violet">tracking.</span></h2>
+                </div>
+                <div class="ad-find">
+                    <span id="user-count" aria-live="polite">@Plural(users.Count, "user")</span>
+                    @if (users.Count > 1)
+                    {
+                        <input id="user-search" type="search" class="ad-search" placeholder="Search name or email" aria-label="Search users" />
+                    }
+                </div>
+            </div>
+
+            <div class="ad-glass ad-scroll lp-fade" data-reveal>
+                <table class="ad-users">
+                    <thead>
+                        <tr>
+                            <th><button type="button" class="ad-sort" data-sort="name">User</button></th>
+                            <th>Status</th>
+                            <th class="r"><button type="button" class="ad-sort" data-sort="count">Expenses</button></th>
+                            <th class="r"><button type="button" class="ad-sort" data-sort="total">Total spent</button></th>
+                            <th aria-sort="descending"><button type="button" class="ad-sort" data-sort="last">Last expense</button></th>
+                        </tr>
+                    </thead>
+                    <tbody id="user-rows">
+                        @foreach (var u in users)
+                        {
+                            var status = Status(u);
+                            <tr data-name="@u.Name" data-search="@($"{u.Name} {u.Email}".ToLowerInvariant())" data-count="@u.ExpenseCount"
+                                data-total="@u.TotalSpent.ToString(CultureInfo.InvariantCulture)" data-last="@(u.LastExpense?.DayNumber ?? 0)">
+                                <td>
+                                    <div class="ad-who">
+                                        <span class="ad-avatar t-@tints[u.Id % tints.Length]" aria-hidden="true">@Initials(u.Name)</span>
+                                        <div><b>@u.Name</b> <span class="ad-id">#@u.Id</span><small>@u.Email</small></div>
+                                    </div>
+                                </td>
+                                <td><span class="ad-status ad-status--@status">@(status switch { "active" => "Active", "inactive" => "Inactive", _ => "No expenses" })</span></td>
+                                <td class="r num">@u.ExpenseCount.ToString("N0")</td>
+                                <td class="r">
+                                    <div class="num">@u.TotalSpent.ToString("C0")</div>
+                                    <div class="ad-share" aria-hidden="true"><i style="--w: @Pct(u.TotalSpent, topSpend)"></i></div>
+                                </td>
+                                <td>
+                                    @if (u.LastExpense is { } last)
+                                    {
+                                        <time datetime="@last.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" title="@last.ToString("d MMMM yyyy")">@Ago(last)</time>
+                                    }
+                                    else
+                                    {
+                                        <span class="ad-muted">None yet</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tbody>
+                        <tr id="no-match" hidden><td colspan="5" class="ad-muted">No users match your search.</td></tr>
+                        @if (users.Count == 0)
+                        {
+                            <tr><td colspan="5" class="ad-muted">No one has registered yet. New accounts appear here as soon as they sign up.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section id="spending" class="ad-spend lp-pad">
+        <div class="lp-cta__canvas"><canvas id="lp-cta-canvas"></canvas></div>
+        <div class="lp-wrap ad-spend__in">
+            <div class="ad-head lp-fade" data-reveal>
+                <div class="lp-eyebrow">Spending</div>
+                <h2 class="lp-h2 ad-h2">Where the money <span class="lp-serif">goes.</span></h2>
+            </div>
+
+            <div class="ad-spend__grid">
+                <div class="ad-dark lp-fade" data-reveal>
+                    <h3>Payment modes</h3>
+                    <p>Share of all spending, all users</p>
+                    @if (total == 0)
+                    {
+                        <p class="ad-muted">No expenses yet.</p>
+                    }
+                    else
+                    {
+                        var modes = Model.Modes.Where(m => m.Amount > 0).OrderBy(m => m.Key)
+                            .Select(m => (Name: m.Key.DisplayName(), Color: modeColors[(int)m.Key % modeColors.Length], m.Amount)).ToList();
+                        <div class="ad-split">
+                            @foreach (var (name, color, amount) in modes)
+                            {
+                                <div class="ad-hit" tabindex="0" role="img" aria-label="@name: @amount.ToString("C")" style="flex: @amount.ToString(CultureInfo.InvariantCulture)">
+                                    <i style="background: @color"></i>
+                                    <div class="ad-tip"><strong>@amount.ToString("C0")</strong> @name</div>
+                                </div>
+                            }
+                        </div>
+                        <ul class="ad-list">
+                            @foreach (var (name, color, amount) in modes)
+                            {
+                                <li>
+                                    <span><span class="ad-sw" style="background: @color"></span>@name</span>
+                                    <span class="num">@amount.ToString("C0") <span class="ad-muted">@((amount / total).ToString("P0"))</span></span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+
+                <div class="ad-dark lp-fade" data-reveal style="--d:.1s">
+                    <h3>Top categories</h3>
+                    <p>By amount, all users</p>
+                    @if (total == 0)
+                    {
+                        <p class="ad-muted">No expenses yet.</p>
+                    }
+                    @foreach (var c in Model.Categories.Where(c => c.Amount > 0).Take(6))
+                    {
+                        <div class="ad-cat">
+                            <div><span>@c.Key</span><span class="num">@c.Amount.ToString("C0") <span class="ad-muted">@((c.Amount / total).ToString("P0"))</span></span></div>
+                            <i style="--w: @Pct(c.Amount, Model.Categories[0].Amount)"></i>
+                        </div>
+                    }
+                    @if (Model.Categories.Count > 6)
+                    {
+                        <p class="ad-muted">and @(Model.Categories.Count - 6) more</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <footer class="lp-footer">
+            <span>&copy; 2026 - ExpenseTracker</span>
+            <nav>
+                <a href="#top">Back to top</a>
+            </nav>
+        </footer>
+    </section>
+
+    <script src="~/js/landing.js" asp-append-version="true"></script>
+</body>
+</html>

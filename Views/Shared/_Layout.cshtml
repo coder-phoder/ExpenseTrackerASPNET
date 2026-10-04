@@ -36,13 +36,8 @@
                         <li class="nav-item">
                             <a class="nav-link text-body" asp-area="" asp-controller="User" asp-action="Index">Home</a>
                         </li>
-                        @if (User.IsInRole("Admin"))
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link text-body" asp-area="" asp-controller="Admin" asp-action="Index">Users</a>
-                            </li>
-                        }
-                        else if (User.Identity?.IsAuthenticated == true)
+                        @* The admin's Home is the admin overview, so it needs no links of its own. *@
+                        @if (User.Identity?.IsAuthenticated == true && !User.IsInRole("Admin"))
                         {
                             <li class="nav-item">
                                 <a class="nav-link text-body" asp-area="" asp-controller="User" asp-action="Expenses">Expenses</a>

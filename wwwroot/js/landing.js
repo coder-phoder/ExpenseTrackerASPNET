@@ -1,4 +1,5 @@
-// ExpenseTracker landing, login and register pages: background canvas, scroll-linked story, reveal-on-scroll and the auth form meter.
+// ExpenseTracker landing, login, register and admin pages: background canvas, scroll-linked story, reveal-on-scroll,
+// the auth form meter and the admin overview's count-up, people table and live-data columns.
 // Options on <body>: data-bg="columns|calm|off", data-motion="0..1.5", data-story-length="420" (vh).
 (function () {
   'use strict';
@@ -59,6 +60,55 @@
       show.textContent = on ? 'Hide' : 'Show';
       show.setAttribute('aria-label', on ? 'Hide password' : 'Show password');
       form.querySelectorAll('#Password, #ConfirmPassword').forEach(function (el) { el.type = on ? 'text' : 'password'; });
+    });
+  }
+
+  // Admin: headline numbers count up from zero once, on load. Distinct from the table rows' data-count sort keys.
+  var counters = document.querySelectorAll('[data-countup]');
+  if (counters.length && !reduced) {
+    var money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+    var plain = new Intl.NumberFormat('en-IN');
+    var t0 = performance.now();
+    var countUp = function (now) {
+      var p = ease(cl((now - t0) / 1400));
+      counters.forEach(function (el) {
+        var v = Math.round(el.dataset.countup * p);
+        el.textContent = el.dataset.format === 'money' ? money.format(v) : plain.format(v);
+      });
+      if (p < 1) requestAnimationFrame(countUp);
+    };
+    requestAnimationFrame(countUp);
+  }
+
+  // Admin: the year grid scrolls sideways on narrow screens; start it at today.
+  var heat = document.querySelector('.ad-heat-scroll');
+  if (heat) heat.scrollLeft = heat.scrollWidth;
+
+  // Admin people table: search by name or email; sort by any column (names A-Z first, numbers high-low first).
+  var rows = document.getElementById('user-rows');
+  if (rows) {
+    var label = function (n) { return n + (n === 1 ? ' user' : ' users'); };
+    document.querySelectorAll('.ad-sort').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var th = button.parentElement, key = button.dataset.sort, current = th.getAttribute('aria-sort');
+        var dir = current ? (current === 'ascending' ? 'descending' : 'ascending') : (key === 'name' ? 'ascending' : 'descending');
+        document.querySelectorAll('.ad-users th[aria-sort]').forEach(function (t) { t.removeAttribute('aria-sort'); });
+        th.setAttribute('aria-sort', dir);
+        var compare = function (a, b) { return key === 'name' ? a.dataset.name.localeCompare(b.dataset.name) : a.dataset[key] - b.dataset[key]; };
+        Array.prototype.slice.call(rows.rows)
+          .sort(function (a, b) { return dir === 'ascending' ? compare(a, b) : compare(b, a); })
+          .forEach(function (tr) { rows.appendChild(tr); });
+      });
+    });
+    var search = document.getElementById('user-search');
+    if (search) search.addEventListener('input', function () {
+      var q = search.value.trim().toLowerCase(), shown = 0;
+      Array.prototype.forEach.call(rows.rows, function (tr) {
+        tr.hidden = tr.dataset.search.indexOf(q) < 0;
+        if (!tr.hidden) shown++;
+      });
+      document.getElementById('no-match').hidden = shown > 0;
+      document.getElementById('user-count').textContent = q ? shown + ' of ' + label(rows.rows.length) : label(rows.rows.length);
     });
   }
 
@@ -145,6 +195,12 @@
     { el: document.getElementById('lp-hero-canvas'), dark: false },
     { el: document.getElementById('lp-cta-canvas'), dark: true }
   ];
+  // Admin: a canvas with data-days ([count, label] per day, oldest first) draws real activity instead of the decorative wave.
+  fields.forEach(function (f) {
+    if (!f.el || !f.el.dataset.days) return;
+    f.days = JSON.parse(f.el.dataset.days);
+    f.max = Math.max.apply(null, f.days.map(function (d) { return d[0]; }).concat(1));
+  });
 
   function bar(ctx, x, y, w, h) {
     var r = Math.min(4, w / 2, h);
@@ -188,7 +244,7 @@
         ctx.fillStyle = 'rgba(255,255,255,.6)';
         ctx.fillRect(0, Math.round(y), w, 1);
         ctx.fillStyle = 'rgba(29,36,51,.4)';
-        ctx.fillText('₹' + (i * 5000).toLocaleString('en-IN'), 20, y - 8);
+        if (!f.days) ctx.fillText('₹' + (i * 5000).toLocaleString('en-IN'), 20, y - 8);
       }
     }
     if (mode === 'off') return;
@@ -213,6 +269,7 @@
     for (var j = 0; j < n; j++) {
       var x = off + j * gap;
       var v = .5 + .22 * Math.sin(j * .37 + tt * .55) + .16 * Math.sin(j * .13 - tt * .31 + 1.7) + .1 * Math.sin(j * .91 + tt * 1.3);
+      if (f.days) { var day = f.days[f.days.length - n + j]; v = day ? .05 + .95 * day[0] / f.max + .04 * Math.sin(j * .37 + tt * .55) : 0; }
       var d = (x - mx) / 120, lift = Math.exp(-d * d) * amt;
       var hh = h * (dark ? (.08 + .26 * v) : (.12 + .42 * v + .2 * lift));
       if (dark) {
@@ -226,9 +283,10 @@
       if (j === tipIdx) tip = { x: x, y: h - hh };
     }
 
-    if (tip) {
+    var item = tips[kk % tips.length];
+    if (f.days && tip) { var td = f.days[f.days.length - n + tipIdx]; item = td && [td[0] + (td[0] === 1 ? ' expense' : ' expenses'), td[1], 0]; }
+    if (tip && item) {
       var al = ph < .14 ? ph / .14 : ph > .82 ? Math.max(0, (1 - ph) / .18) : 1;
-      var item = tips[kk % tips.length];
       ctx.globalAlpha = al;
       ctx.fillStyle = item[2] ? 'rgba(235,104,52,.95)' : 'rgba(42,120,214,.95)';
       bar(ctx, tip.x - bw / 2, tip.y, bw, h - tip.y);
