@@ -1,0 +1,182 @@
+EXPENSE TRACKER - FEATURE ROADMAP
+=================================
+
+Difficulty guide
+  LOW     Small change inside existing pages. No new tables, packages or
+          outside services.
+  MEDIUM  New table + migration, a new page, a NuGet package, or sending email.
+  HIGH    Background jobs, outside integrations, new infrastructure, or
+          security-critical flows.
+
+Within each level, items are listed in priority order: build top to bottom.
+
+
+ALREADY BUILT
+-------------
+  - Landing page, register, login, logout (cookie login, hashed passwords)
+  - Dashboard
+  - Expenses page: add, edit, delete and list (title, price in Rs, date,
+    payment mode, optional description)
+  - Calendar: month navigation; click a day to see and manage its expenses
+    in pop-ups
+  - Analytics: summary cards, monthly and weekday charts, payment-mode split,
+    largest expenses
+  - Profile page
+  - Every user sees and changes only their own data
+
+
+DO FIRST (housekeeping, not features)
+-------------------------------------
+  - Change the Aiven database password and remove it from readme.md.
+    It is in the git history that was pushed to GitHub.
+  - Replace readme.md with real setup steps (user-secrets,
+    dotnet ef database update, dotnet watch).
+
+
+LOW DIFFICULTY
+--------------
+ 1. Logout in the navbar
+    Logout is only on the dashboard today; show it next to Profile on every
+    page.
+
+ 2. Success messages
+    "Expense added / updated / deleted" banner after each action.
+
+ 3. Total on the expenses page
+    Sum of the listed expenses shown under the table.
+
+ 4. Search, sort and filter the expenses list
+    Search by title, sort by date or price, filter by date range and payment
+    mode.
+
+ 5. Dashboard summary
+    This month's spend, the last 5 expenses and a quick "Add expense" button.
+
+ 6. Day totals on the calendar
+    Each day's total shown inside its cell, so busy days stand out without
+    clicking.
+
+ 7. More payment modes
+    UPI, debit card, credit card and net banking alongside cash.
+
+ 8. Edit profile
+    Change your name; change your email with a duplicate check.
+
+ 9. Remember me
+    Optional "keep me logged in" checkbox on the login page.
+
+10. Return to the requested page after login
+    Open the page the user was trying to reach (same-site links only)
+    instead of always the dashboard.
+
+11. Friendly 404 and error pages
+    A styled "page not found" page and a production error page with no
+    developer details.
+
+12. Dark mode
+    Light/dark theme switch, remembered per browser.
+
+
+MEDIUM DIFFICULTY
+-----------------
+ 1. Categories
+    A category on every expense (Food, Travel, Bills, Shopping, ...) plus
+    user-defined ones; filter by category; spend-by-category chart.
+
+ 2. Monthly budgets
+    Overall and per-category budgets with a progress bar and warnings at 80%
+    and 100%.
+    Builds on: Categories.
+
+ 3. Change password
+    Current password, new password and confirmation.
+
+ 4. Income and balance
+    Record income; show the monthly balance and savings rate.
+
+ 5. Pagination
+    Page through long expense lists while keeping search, sort and filters.
+
+ 6. Export
+    Download expenses as CSV/Excel, and a monthly statement as PDF.
+
+ 7. Import from CSV
+    Upload a file, preview and validate the rows, then save; skip duplicates.
+
+ 8. Receipt attachments
+    Attach a photo or PDF to an expense, with file type and size checks.
+
+ 9. Forgot password
+    Emailed, time-limited password reset link.
+    Needs: an email service.
+
+10. Email verification
+    Confirm the email address when registering.
+    Needs: an email service.
+
+11. Login protection
+    Lock an account after repeated failed logins; limit how often /Login and
+    /Register can be called.
+
+12. Sign in with Google
+    Google login, linked to the account with the same verified email.
+
+13. Delete account and download my data
+    Export everything, then permanently remove the user and their expenses.
+
+14. Analytics filters and comparisons
+    Date-range filter, this month vs last month, year over year, and a
+    category breakdown.
+
+15. Automated tests
+    Integration tests for login, expense add/edit/delete, and per-user data
+    isolation.
+
+
+HIGH DIFFICULTY
+---------------
+ 1. Recurring expenses
+    Rent, subscriptions and EMIs created automatically each period; pause,
+    edit or stop a series.
+    Needs: a background job.
+
+ 2. Reminders and notifications
+    Bill reminders, budget alerts and weekly summaries by email or push.
+
+ 3. Shared groups and bill splitting
+    Invite people to a group, split expenses equally or by share, track who
+    owes whom, and settle up.
+
+ 4. Two-factor authentication
+    Authenticator-app codes plus one-time recovery codes.
+
+ 5. Bank / UPI statement import
+    Turn statement exports into expenses, with duplicate detection and
+    automatic categories.
+
+ 6. Receipt scanning (OCR)
+    Read the amount, date and merchant from a receipt photo to pre-fill the
+    form.
+
+ 7. Smart insights
+    Month-end spending forecast, alerts for unusual expenses, category
+    suggestions.
+
+ 8. Installable app with offline entry (PWA)
+    Add expenses without a connection and sync when back online.
+
+ 9. REST API
+    Token-secured API with documentation, for a mobile app or integrations.
+
+10. Admin panel
+    User roles; manage and disable accounts; usage statistics.
+
+11. Production deployment
+    Docker, a CI/CD pipeline that runs tests and migrations, HTTPS, secrets
+    kept out of the code, database backups, logging and monitoring.
+
+
+SUGGESTED ORDER
+---------------
+  Do First -> Low 1-6 -> Medium 1-3 -> Medium 15 (tests) -> the rest by
+  priority.
