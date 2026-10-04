@@ -13,13 +13,17 @@
             document.documentElement.dataset.bsTheme = theme;
             localStorage.setItem('theme', theme);
         }
+        // Print in the light theme: dark-mode text would be invisible on white paper.
+        let printedTheme;
+        addEventListener('beforeprint', () => { printedTheme = document.documentElement.dataset.bsTheme; document.documentElement.dataset.bsTheme = 'light'; });
+        addEventListener('afterprint', () => document.documentElement.dataset.bsTheme = printedTheme);
     </script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/ExpenseTracker.styles.css" asp-append-version="true" />
 </head>
 <body>
-    <header>
+    <header class="d-print-none">
         <nav class="navbar navbar-expand-sm navbar-toggleable-sm bg-body border-bottom box-shadow mb-3">
             <div class="container-fluid">
                 <a class="navbar-brand" asp-area="" asp-controller="User" asp-action="Index">ExpenseTracker</a>
@@ -80,7 +84,7 @@
         </main>
     </div>
 
-    <footer class="border-top footer text-muted">
+    <footer class="border-top footer text-muted d-print-none">
         <div class="container">
             &copy; 2026 - ExpenseTracker
         </div>

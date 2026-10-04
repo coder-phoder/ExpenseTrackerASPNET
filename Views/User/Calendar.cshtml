@@ -12,6 +12,7 @@
     <a asp-action="Calendar" asp-route-month="@month.AddMonths(-1).ToString("yyyy-MM")" class="btn btn-outline-secondary">&laquo; Previous</a>
     <a asp-action="Calendar" class="btn btn-outline-secondary">Today</a>
     <a asp-action="Calendar" asp-route-month="@month.AddMonths(1).ToString("yyyy-MM")" class="btn btn-outline-secondary">Next &raquo;</a>
+    <a asp-action="Statement" asp-route-month="@month.ToString("yyyy-MM")" class="btn btn-outline-primary">Monthly statement</a>
 </div>
 
 <table class="table table-bordered text-center">

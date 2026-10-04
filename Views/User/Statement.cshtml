@@ -1,0 +1,91 @@
+@model (DateOnly Month, List<Expense> Expenses)
+@{
+    // Also the browser's default file name when saving as PDF.
+    ViewData["Title"] = $"Statement {Model.Month:MMMM yyyy}";
+    var total = Model.Expenses.Sum(e => e.Price ?? 0);
+    var byCategory = Model.Expenses.GroupBy(e => e.Category)
+        .Select(g => (Name: g.Key, Count: g.Count(), Amount: g.Sum(e => e.Price ?? 0)))
+        .OrderByDescending(c => c.Amount)
+        .ToList();
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 d-print-none">
+    <form asp-action="Statement" method="get" class="d-flex gap-2">
+        <input type="month" name="month" value="@Model.Month.ToString("yyyy-MM")" class="form-control" aria-label="Month" required />
+        <button type="submit" class="btn btn-outline-primary">Show</button>
+    </form>
+    <div class="d-flex gap-2">
+        <a asp-action="ExportCsv" asp-route-from="@Model.Month.ToString("yyyy-MM-dd")" asp-route-to="@Model.Month.AddMonths(1).AddDays(-1).ToString("yyyy-MM-dd")"
+           asp-route-sort="date_asc" class="btn btn-outline-secondary">Export CSV</a>
+        <button type="button" class="btn btn-primary" onclick="print()">Save as PDF</button>
+    </div>
+</div>
+
+<h1 class="mb-1">Statement · @Model.Month.ToString("MMMM yyyy")</h1>
+<p class="text-body-secondary">@User.Identity?.Name · Generated @DateTime.Today.ToString("dd MMM yyyy")</p>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card"><div class="card-body">
+            <div class="small text-body-secondary">Total spent</div>
+            <div class="fs-4 fw-semibold">@total.ToString("C")</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card"><div class="card-body">
+            <div class="small text-body-secondary">Expenses</div>
+            <div class="fs-4 fw-semibold">@Model.Expenses.Count</div>
+        </div></div>
+    </div>
+</div>
+
+@if (Model.Expenses.Count == 0)
+{
+    <p class="text-body-secondary">No expenses this month.</p>
+}
+else
+{
+    <h2 class="h5">By category</h2>
+    <div class="table-responsive mb-4">
+        <table class="table table-sm">
+            <thead>
+                <tr><th>Category</th><th class="text-end">Expenses</th><th class="text-end">Amount</th><th class="text-end">Share</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var c in byCategory)
+                {
+                    <tr>
+                        <td>@c.Name</td>
+                        <td class="text-end">@c.Count</td>
+                        <td class="text-end text-nowrap">@c.Amount.ToString("C")</td>
+                        <td class="text-end">@((c.Amount / total).ToString("P0"))</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <h2 class="h5">Transactions</h2>
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead>
+                <tr><th>Date</th><th>Title</th><th>Category</th><th>Mode</th><th class="text-end">Price</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var e in Model.Expenses)
+                {
+                    <tr>
+                        <td class="text-nowrap">@e.Date.ToString("dd MMM")</td>
+                        <td>@e.Title</td>
+                        <td>@e.Category</td>
+                        <td>@e.PaymentMode.DisplayName()</td>
+                        <td class="text-end text-nowrap">@e.Price?.ToString("C")</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr class="fw-semibold"><td colspan="4">Total</td><td class="text-end text-nowrap">@total.ToString("C")</td></tr>
+            </tfoot>
+        </table>
+    </div>
+}

@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Security.Claims;
+using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -119,6 +121,33 @@ public class UserController(AppDbContext db, IConfiguration config) : Controller
         return await ExpensesView(expense, q, from, to, mode, category, sort, page);
     }
 
+    // Exports every row matching the list's filters and sort, not just the current page.
+    [Authorize]
+    public async Task<IActionResult> ExportCsv(string? q, DateOnly? from, DateOnly? to, PaymentMode? mode, string? category, string? sort)
+    {
+        // The BOM makes Excel read the file as UTF-8, so ₹ and non-English titles survive.
+        var csv = new StringBuilder("\uFEFFDate,Title,Category,Description,Payment mode,Price\r\n");
+        foreach (var e in await Filter(q, from, to, mode, category, sort).ToListAsync())
+        {
+            string[] fields = [e.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), e.Title, e.Category, e.Description ?? "", e.PaymentMode.DisplayName(), e.Price?.ToString(CultureInfo.InvariantCulture) ?? ""];
+            csv.AppendJoin(',', fields.Select(CsvField)).Append("\r\n");
+        }
+        return File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", $"expenses-{DateTime.Today:yyyy-MM-dd}.csv");
+    }
+
+    // A print-friendly page; the browser's "Save as PDF" turns it into the PDF statement.
+    [Authorize]
+    public async Task<IActionResult> Statement(DateOnly? month)
+    {
+        var date = month ?? DateOnly.FromDateTime(DateTime.Today);
+        var first = new DateOnly(date.Year, date.Month, 1);
+        var expenses = await db.Expenses
+            .Where(e => e.UserId == CurrentUserId && e.Date >= first && e.Date < first.AddMonths(1))
+            .OrderBy(e => e.Date).ThenBy(e => e.Id)
+            .ToListAsync();
+        return View((first, expenses));
+    }
+
     [Authorize]
     [HttpPost]
     public async Task<IActionResult> Expenses(Expense expense, string? returnUrl)
@@ -176,7 +205,26 @@ public class UserController(AppDbContext db, IConfiguration config) : Controller
         return Expense.DefaultCategories.Union(used, StringComparer.OrdinalIgnoreCase).Order().ToList();
     }
 
+    // Quotes fields holding commas, quotes or line breaks; a leading ' stops Excel running user text as a formula.
+    private static string CsvField(string s)
+    {
+        if (s.Length > 0 && "=+-@\t\r".Contains(s[0]))
+        {
+            s = "'" + s;
+        }
+        return s.IndexOfAny([',', '"', '\r', '\n']) >= 0 ? $"\"{s.Replace("\"", "\"\"")}\"" : s;
+    }
+
     private async Task<IActionResult> ExpensesView(Expense expense, string? q = null, DateOnly? from = null, DateOnly? to = null, PaymentMode? mode = null, string? category = null, string? sort = null, int page = 1)
+    {
+        var expenses = Filter(q, from, to, mode, category, sort);
+        var pageCount = Math.Max(1, (await expenses.CountAsync() + PageSize - 1) / PageSize);
+        page = Math.Clamp(page, 1, pageCount);
+        var pageItems = await expenses.Skip((page - 1) * PageSize).Take(PageSize).ToListAsync();
+        return View(nameof(Expenses), new ExpensesViewModel(pageItems, expense, await CategoriesAsync(), Page: page, PageCount: pageCount));
+    }
+
+    private IQueryable<Expense> Filter(string? q, DateOnly? from, DateOnly? to, PaymentMode? mode, string? category, string? sort)
     {
         var expenses = db.Expenses.Where(e => e.UserId == CurrentUserId);
         if (!string.IsNullOrWhiteSpace(q))
@@ -199,16 +247,12 @@ public class UserController(AppDbContext db, IConfiguration config) : Controller
         {
             expenses = expenses.Where(e => e.Category == category);
         }
-        expenses = sort switch
+        return sort switch
         {
             "date_asc" => expenses.OrderBy(e => e.Date).ThenBy(e => e.Id),
             "price_desc" => expenses.OrderByDescending(e => e.Price).ThenByDescending(e => e.Id),
             "price_asc" => expenses.OrderBy(e => e.Price).ThenBy(e => e.Id),
             _ => expenses.OrderByDescending(e => e.Date).ThenByDescending(e => e.Id),
         };
-        var pageCount = Math.Max(1, (await expenses.CountAsync() + PageSize - 1) / PageSize);
-        page = Math.Clamp(page, 1, pageCount);
-        var pageItems = await expenses.Skip((page - 1) * PageSize).Take(PageSize).ToListAsync();
-        return View(nameof(Expenses), new ExpensesViewModel(pageItems, expense, await CategoriesAsync(), Page: page, PageCount: pageCount));
     }
 }
