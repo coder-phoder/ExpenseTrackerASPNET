@@ -52,6 +52,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <partial name="_Theme" />
     <title>Admin overview - ExpenseTracker</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -68,6 +69,7 @@
                 <a href="#activity" class="lp-nav__link">Activity</a>
                 <a href="#people" class="lp-nav__link">People</a>
                 <a href="#spending" class="lp-nav__link">Spending</a>
+                <partial name="_ThemeToggle" model='"lp-theme theme-icon"' />
                 <form asp-controller="Account" asp-action="Logout" method="post">
                     <button type="submit" class="lp-nav__cta ad-logout">Logout</button>
                 </form>

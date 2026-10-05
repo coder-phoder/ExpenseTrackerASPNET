@@ -1,0 +1,7 @@
+@model string
+@* The theme switch for any page; the model is the button's class. Add "theme-icon" for an icon-only button. *@
+<button type="button" class="@Model" onclick="toggleTheme()">
+    <svg class="when-light" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 14A7.5 7.5 0 1 1 10 4.5a6 6 0 0 0 9.5 9.5z" /></svg>
+    <svg class="when-dark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 3v1.5M12 19.5V21M5.6 5.6l1.1 1.1M17.3 17.3l1.1 1.1M3 12h1.5M19.5 12H21M5.6 18.4l1.1-1.1M17.3 6.7l1.1-1.1" /></svg>
+    <span class="theme-label"><span class="when-light">Dark mode</span><span class="when-dark">Light mode</span></span>
+</button>

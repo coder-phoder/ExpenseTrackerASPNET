@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <partial name="_Theme" />
     <title>@ViewData["Title"] - ExpenseTracker</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,6 +17,7 @@
     <nav class="lp-nav">
         <div class="lp-nav__in lp-wrap lp-pad">
             <a asp-controller="User" asp-action="Index" class="lp-brand"><span class="lp-mark"><i></i><i></i><i></i></span><span>ExpenseTracker</span></a>
+            <partial name="_ThemeToggle" model='"lp-theme theme-icon"' />
         </div>
     </nav>
 

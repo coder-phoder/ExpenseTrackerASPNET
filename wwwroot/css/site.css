@@ -1,7 +1,7 @@
 /* Signed-in app: theme (also re-skins Bootstrap through its own variables, so every page matches), the sidebar shell,
    and the Overview and Expenses pages. */
 
-/* Theme colours: the one place light and dark colours are defined. */
+/* Light theme colours. The dark ones are in theme.css. */
 :root, [data-bs-theme=light] {
   --series-1: #2a78d6;
   --series-2: #eb6834;
@@ -43,43 +43,10 @@
   --bs-link-hover-color-rgb: 34, 91, 182;
 }
 
+/* Dark: the palette is in theme.css (shared with the landing, login, register and admin pages); only Bootstrap's link colours are restated. */
 [data-bs-theme=dark] {
-  --series-1: #3987e5;
-  --series-2: #d95926;
-  --series-3: #199e70;
-  --series-4: #c98500;
-  --series-5: #d55181;
-  --series-6: #008300;
-
-  --canvas: #0d0f13;
-  --surface: #15181e;
-  --ink: #e8eaee;
-  --muted: #959cab;
-  --line: #262a32;
-  --line-strong: #353a44;
-  --hover: #1d2027;
-  --accent: #6aa0f5;
-  --accent-btn: #2f6fe0;
-  --accent-btn-hover: #3d7cea;
-  --accent-soft: #1a2640;
-  --up: #f97066;
-  --up-soft: #3a1714;
-  --down: #47cd89;
-  --down-soft: #0f2e1f;
-  --rest: #4a505c;
-  --shadow: none;
-
-  --bs-body-bg: var(--canvas);
-  --bs-body-color: var(--ink);
-  --bs-secondary-color: var(--muted);
-  --bs-border-color: var(--line);
   --bs-link-color-rgb: 106, 160, 245;
   --bs-link-hover-color-rgb: 138, 180, 248;
-}
-
-/* Theme button label: names the theme a click switches to */
-[data-bs-theme=light] .when-dark, [data-bs-theme=dark] .when-light {
-  display: none;
 }
 
 html {
@@ -374,10 +341,6 @@ svg.i {
   text-align: left;
   text-decoration: none;
   transition: color .15s, background-color .15s;
-}
-
-.side-link > span {
-  display: contents;
 }
 
 .side-link:hover {

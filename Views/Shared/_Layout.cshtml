@@ -17,19 +17,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - ExpenseTracker</title>
     <script type="importmap"></script>
-    <script>
-        // Saved theme, else the OS setting. Set before first paint so the page never flashes the wrong theme.
-        document.documentElement.dataset.bsTheme = localStorage.getItem('theme') ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-        function toggleTheme() {
-            const theme = document.documentElement.dataset.bsTheme === 'dark' ? 'light' : 'dark';
-            document.documentElement.dataset.bsTheme = theme;
-            localStorage.setItem('theme', theme);
-        }
-        // Print in the light theme: dark-mode text would be invisible on white paper.
-        let printedTheme;
-        addEventListener('beforeprint', () => { printedTheme = document.documentElement.dataset.bsTheme; document.documentElement.dataset.bsTheme = 'light'; });
-        addEventListener('afterprint', () => document.documentElement.dataset.bsTheme = printedTheme);
-    </script>
+    <partial name="_Theme" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&amp;display=swap" rel="stylesheet" />
@@ -44,8 +32,6 @@
         <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2.5" /><path d="M4 10h16M8.5 3v4M15.5 3v4" /></symbol>
         <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20h16M7 16v-4M12 16V7M17 16v-6" /></symbol>
         <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5" /><path d="M5 20a7 7 0 0 1 14 0" /></symbol>
-        <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19.5 14A7.5 7.5 0 1 1 10 4.5a6 6 0 0 0 9.5 9.5z" /></symbol>
-        <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /><path d="M12 3v1.5M12 19.5V21M5.6 5.6l1.1 1.1M17.3 17.3l1.1 1.1M3 12h1.5M19.5 12H21M5.6 18.4l1.1-1.1M17.3 6.7l1.1-1.1" /></symbol>
         <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h4M15 16l4-4-4-4M19 12H9" /></symbol>
         <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></symbol>
         <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
@@ -97,11 +83,7 @@
                         <span class="text-truncate">@name</span>
                     </div>
                 }
-                <button type="button" class="side-link" onclick="toggleTheme()">
-                    <span class="when-light"><svg class="i"><use href="#i-moon" /></svg></span>
-                    <span class="when-dark"><svg class="i"><use href="#i-sun" /></svg></span>
-                    <span class="when-light">Dark mode</span><span class="when-dark">Light mode</span>
-                </button>
+                <partial name="_ThemeToggle" model='"side-link"' />
                 @if (signedIn)
                 {
                     <form asp-controller="Account" asp-action="Logout" method="post">

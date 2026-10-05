@@ -51,6 +51,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <partial name="_Theme" />
     <title>ExpenseTracker — Every rupee, accounted for</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -66,6 +67,7 @@
             <div class="lp-nav__links">
                 <a href="#story" class="lp-nav__link">How it works</a>
                 <a href="#features" class="lp-nav__link">Features</a>
+                <partial name="_ThemeToggle" model='"lp-theme theme-icon"' />
                 <a asp-controller="Account" asp-action="Login" class="lp-nav__login">Login</a>
                 <a asp-controller="Account" asp-action="Register" class="lp-nav__cta">Register</a>
             </div>

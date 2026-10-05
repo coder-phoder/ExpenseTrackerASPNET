@@ -217,7 +217,7 @@
     var isStatic = reduced || mode === 'off';
     var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     var W = Math.round(r.width * dpr), H = Math.round(r.height * dpr);
-    var key = W + 'x' + H;
+    var key = W + 'x' + H + pal.ink; // a theme switch redraws a still canvas too
     if (isStatic && f.key === key) return;
     f.key = key;
     if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
@@ -232,7 +232,7 @@
       var cy = (b[2] + Math.cos(tt * .11 + b[4]) * b[5]) * h;
       var R = b[3] * Math.max(w, h);
       var g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
-      g.addColorStop(0, 'rgba(' + b[0] + ',' + b[6] + ')');
+      g.addColorStop(0, 'rgba(' + b[0] + ',' + b[6] * (dark ? 1 : pal.glow) + ')');
       g.addColorStop(1, 'rgba(' + b[0] + ',0)');
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, w, h);
@@ -241,11 +241,12 @@
     if (!dark) {
       ctx.font = '11px SFMono-Regular, Menlo, Consolas, monospace';
       for (var y = h - 100, i = 1; y > 110; y -= 100, i++) {
-        ctx.fillStyle = 'rgba(255,255,255,.6)';
+        ctx.globalAlpha = .6; ctx.fillStyle = pal.surface;
         ctx.fillRect(0, Math.round(y), w, 1);
-        ctx.fillStyle = 'rgba(29,36,51,.4)';
+        ctx.globalAlpha = .4; ctx.fillStyle = pal.ink;
         if (!f.days) ctx.fillText('₹' + (i * 5000).toLocaleString('en-IN'), 20, y - 8);
       }
+      ctx.globalAlpha = 1;
     }
     if (mode === 'off') return;
 
@@ -277,9 +278,11 @@
       } else {
         var kind = j % 9 === 4 ? 'b' : j % 13 === 7 ? 'o' : 'w';
         var a = kind === 'w' ? .55 + .4 * lift : .34 + .45 * lift;
-        ctx.fillStyle = kind === 'b' ? 'rgba(42,120,214,' + a + ')' : kind === 'o' ? 'rgba(235,104,52,' + a + ')' : 'rgba(255,255,255,' + a + ')';
+        ctx.globalAlpha = kind === 'w' ? a : 1;
+        ctx.fillStyle = kind === 'b' ? 'rgba(42,120,214,' + a + ')' : kind === 'o' ? 'rgba(235,104,52,' + a + ')' : pal.surface;
       }
       bar(ctx, x - bw / 2, h - hh, bw, hh);
+      ctx.globalAlpha = 1;
       if (j === tipIdx) tip = { x: x, y: h - hh };
     }
 
@@ -299,22 +302,28 @@
       var bx = Math.max(8, Math.min(w - bwid - 8, tip.x - bwid / 2));
       var by = tip.y - bh - 10;
       ctx.shadowColor = 'rgba(29,36,51,.14)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = pal.surface;
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(bx, by, bwid, bh, 7); else ctx.rect(bx, by, bwid, bh);
       ctx.fill();
       ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#1d2433'; ctx.font = f1; ctx.fillText(item[0], bx + 9, by + bh / 2);
-      ctx.fillStyle = 'rgba(29,36,51,.7)'; ctx.font = f2; ctx.fillText(t2, bx + 9 + w1, by + bh / 2);
+      ctx.fillStyle = pal.ink; ctx.font = f1; ctx.fillText(item[0], bx + 9, by + bh / 2);
+      ctx.globalAlpha = al * .7; ctx.font = f2; ctx.fillText(t2, bx + 9 + w1, by + bh / 2);
       ctx.textBaseline = 'alphabetic';
       ctx.globalAlpha = 1;
     }
   }
 
+  // The light-section canvases draw in the theme's colours (landing.css, theme.css): white and ink by day, dark surface and light ink by night.
+  var rootStyle = getComputedStyle(document.documentElement);
+  var pal = {};
   function loop(now) {
     requestAnimationFrame(loop);
     var t = now / 1000;
+    pal.surface = rootStyle.getPropertyValue('--surface').trim();
+    pal.ink = rootStyle.getPropertyValue('--ink').trim();
+    pal.glow = parseFloat(rootStyle.getPropertyValue('--glow')) || 1;
     fields.forEach(function (f) { drawField(f, t); });
   }
   requestAnimationFrame(loop);
