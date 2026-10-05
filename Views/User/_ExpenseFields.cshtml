@@ -1,38 +1,49 @@
 @model ExpensesViewModel
 
 <input type="hidden" asp-for="Expense.Id" />
-<div class="mb-3">
-    <label asp-for="Expense.Title" class="form-label"></label>
-    <input asp-for="Expense.Title" class="form-control" />
-    <span asp-validation-for="Expense.Title" class="text-danger"></span>
+<div class="f-row">
+    <label asp-for="Expense.Price" class="f-label"></label>
+    <div class="f-money">
+        <span aria-hidden="true">₹</span>
+        <input asp-for="Expense.Price" class="f-big" inputmode="decimal" placeholder="0.00" autocomplete="off" />
+    </div>
+    <span asp-validation-for="Expense.Price" class="f-err"></span>
 </div>
-<div class="mb-3">
-    <label asp-for="Expense.Price" class="form-label"></label>
-    <input asp-for="Expense.Price" class="form-control" />
-    <span asp-validation-for="Expense.Price" class="text-danger"></span>
+<div class="f-row">
+    <label asp-for="Expense.Title" class="f-label"></label>
+    <input asp-for="Expense.Title" class="f-in" placeholder="What was it for?" />
+    <span asp-validation-for="Expense.Title" class="f-err"></span>
 </div>
-<div class="mb-3">
-    <label asp-for="Expense.Category" class="form-label"></label>
-    <input asp-for="Expense.Category" class="form-control" list="categoryList" autocomplete="off" placeholder="Pick one or type a new one" />
-    <datalist id="categoryList">
+<div class="f-row">
+    <label asp-for="Expense.Category" class="f-label"></label>
+    @* Chips fill in the input (site.js); typing a name that isn't a chip makes a new category. *@
+    <div class="f-chips">
         @foreach (var c in Model.Categories)
         {
-            <option value="@c"></option>
+            <button type="button" class="f-chip" data-category="@c" style="--h: @Expense.Hue(c)"
+                    aria-pressed="@(c.Equals(Model.Expense.Category?.Trim(), StringComparison.OrdinalIgnoreCase) ? "true" : "false")">@c</button>
         }
-    </datalist>
-    <span asp-validation-for="Expense.Category" class="text-danger"></span>
+    </div>
+    <input asp-for="Expense.Category" class="f-in" autocomplete="off" placeholder="Or type a new category" />
+    <span asp-validation-for="Expense.Category" class="f-err"></span>
 </div>
-<div class="mb-3">
-    <label asp-for="Expense.Date" class="form-label"></label>
-    <input asp-for="Expense.Date" class="form-control" />
-    <span asp-validation-for="Expense.Date" class="text-danger"></span>
+<div class="f-row">
+    <label asp-for="Expense.Date" class="f-label"></label>
+    <input asp-for="Expense.Date" class="f-in" />
+    <span asp-validation-for="Expense.Date" class="f-err"></span>
 </div>
-<div class="mb-3">
-    <label asp-for="Expense.PaymentMode" class="form-label"></label>
-    <select asp-for="Expense.PaymentMode" asp-items="Html.GetEnumSelectList<PaymentMode>()" class="form-select"></select>
-</div>
-<div class="mb-3">
-    <label asp-for="Expense.Description" class="form-label"></label>
-    <textarea asp-for="Expense.Description" class="form-control"></textarea>
-    <span asp-validation-for="Expense.Description" class="text-danger"></span>
+<fieldset class="f-row">
+    <legend class="f-label">@Html.DisplayNameFor(m => m.Expense.PaymentMode)</legend>
+    <div class="f-modes">
+        @foreach (var m in Enum.GetValues<PaymentMode>())
+        {
+            <input type="radio" class="f-radio" name="Expense.PaymentMode" id="mode-@m" value="@((int)m)" checked="@(Model.Expense.PaymentMode == m)" />
+            <label for="mode-@m">@m.DisplayName()</label>
+        }
+    </div>
+</fieldset>
+<div class="f-row">
+    <label asp-for="Expense.Description" class="f-label"></label>
+    <textarea asp-for="Expense.Description" class="f-in" rows="2" placeholder="Optional note"></textarea>
+    <span asp-validation-for="Expense.Description" class="f-err"></span>
 </div>

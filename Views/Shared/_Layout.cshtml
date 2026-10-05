@@ -1,4 +1,16 @@
-﻿<!DOCTYPE html>
+@{
+    var signedIn = User.Identity?.IsAuthenticated == true;
+    // A user's sections, each with its own hue (oklch). The current one also tints the background. The admin's Home is the admin overview, so it has none.
+    (string Action, string Label, int Hue, string Icon)[] links = signedIn && !User.IsInRole("Admin")
+        ? [("Dashboard", "Home", 275, "home"), ("Expenses", "Expenses", 40, "receipt"), ("Calendar", "Calendar", 165, "calendar"),
+           ("Analytics", "Analytics", 320, "bars"), ("Profile", "Profile", 85, "user")]
+        : [];
+    var action = ViewContext.RouteData.Values["action"] as string;
+    // The statement is opened from the calendar, so it stays in that section.
+    var current = action == "Statement" ? "Calendar" : action;
+    var hue = links.FirstOrDefault(l => l.Action == current).Hue is > 0 and var h ? h : 275;
+}
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -18,72 +30,76 @@
         addEventListener('beforeprint', () => { printedTheme = document.documentElement.dataset.bsTheme; document.documentElement.dataset.bsTheme = 'light'; });
         addEventListener('afterprint', () => document.documentElement.dataset.bsTheme = printedTheme);
     </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&amp;display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/ExpenseTracker.styles.css" asp-append-version="true" />
 </head>
-<body>
-    <header class="d-print-none">
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm bg-body border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="User" asp-action="Index">ExpenseTracker</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-body" asp-area="" asp-controller="User" asp-action="Index">Home</a>
-                        </li>
-                        @* The admin's Home is the admin overview, so it needs no links of its own. *@
-                        @if (User.Identity?.IsAuthenticated == true && !User.IsInRole("Admin"))
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link text-body" asp-area="" asp-controller="User" asp-action="Expenses">Expenses</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-body" asp-area="" asp-controller="User" asp-action="Calendar">Calendar</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-body" asp-area="" asp-controller="User" asp-action="Analytics">Analytics</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-body" asp-area="" asp-controller="User" asp-action="Profile">Profile</a>
-                            </li>
-                        }
-                    </ul>
-                    <button type="button" class="btn btn-link nav-link text-body" onclick="toggleTheme()">
-                        <span class="when-light">Dark mode</span><span class="when-dark">Light mode</span>
-                    </button>
-                    @if (User.Identity?.IsAuthenticated == true)
-                    {
-                        <form asp-controller="Account" asp-action="Logout" method="post">
-                            <button type="submit" class="btn btn-link nav-link text-body">Logout</button>
-                        </form>
-                    }
-                </div>
-            </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @if (TempData["Success"] is string success)
+<body style="--hue: @hue">
+    <div class="aura d-print-none" aria-hidden="true"><i></i><i></i><i></i></div>
+
+    <svg class="position-absolute" width="0" height="0" aria-hidden="true">
+        <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></symbol>
+        <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M5 2.5h14v19l-3.5-2-3.5 2-3.5-2-3.5 2zM9 7.5h6M9 11.5h6M9 15.5h3.5" /></symbol>
+        <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="3" /><path d="M3.5 10h17M8 3v4M16 3v4" /></symbol>
+        <symbol id="i-bars" viewBox="0 0 24 24"><path d="M5 20v-8M12 20V4M19 20v-5" /></symbol>
+        <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></symbol>
+        <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.5 13.5A8.5 8.5 0 1 1 10.5 3.5a6.5 6.5 0 0 0 10 10z" /></symbol>
+        <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></symbol>
+        <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></symbol>
+        <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19.5 8.5a2.8 2.8 0 0 0-4-4L4 16zM14 6l4 4" /></symbol>
+        <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V4h5v3M6 7l1 13h10l1-13" /></symbol>
+    </svg>
+
+    <div class="container tb-wrap d-print-none">
+        <header class="tb">
+            <a class="tb-brand" asp-controller="User" asp-action="Index"><span class="tb-mark" aria-hidden="true"><i></i><i></i><i></i></span>ExpenseTracker</a>
+            @if (links.Length > 0)
             {
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    @success
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
+                <nav class="tb-nav" aria-label="Main">
+                    @foreach (var l in links)
+                    {
+                        var active = l.Action == current;
+                        <a class="tb-link" asp-controller="User" asp-action="@l.Action" style="--h: @l.Hue" aria-current="@(active ? "page" : null)">
+                            @if (active)
+                            {
+                                <span class="tb-pill"></span>
+                            }
+                            <svg class="i"><use href="#i-@l.Icon" /></svg>
+                            <span>@l.Label</span>
+                        </a>
+                    }
+                </nav>
             }
+            <div class="tb-tools">
+                <button type="button" class="tb-icon" onclick="toggleTheme()">
+                    <span class="when-light"><svg class="i"><use href="#i-moon" /></svg><span class="visually-hidden">Dark mode</span></span>
+                    <span class="when-dark"><svg class="i"><use href="#i-sun" /></svg><span class="visually-hidden">Light mode</span></span>
+                </button>
+                @if (signedIn)
+                {
+                    <form asp-controller="Account" asp-action="Logout" method="post">
+                        <button type="submit" class="tb-out">Logout</button>
+                    </form>
+                }
+            </div>
+        </header>
+    </div>
+
+    @if (TempData["Success"] is string success)
+    {
+        <div class="flash d-print-none" role="status">@success</div>
+    }
+
+    <div class="container">
+        <main role="main" class="pb-4">
             @RenderBody()
         </main>
     </div>
 
-    <footer class="border-top footer text-muted d-print-none">
-        <div class="container">
-            &copy; 2026 - ExpenseTracker
-        </div>
-    </footer>
+    <footer class="foot d-print-none">&copy; 2026 ExpenseTracker</footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>

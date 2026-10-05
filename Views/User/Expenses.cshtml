@@ -1,123 +1,138 @@
+@using System.Globalization
 @model ExpensesViewModel
 @{
     ViewData["Title"] = "Expenses";
     var editing = Model.Expense.Id != 0;
     var filter = Context.Request.Query;
+    var filtered = new[] { "q", "from", "to", "mode", "category" }.Any(k => !string.IsNullOrEmpty(filter[k]));
+    // Day headings only make sense while the list is in date order.
+    var byDate = string.IsNullOrEmpty(filter["sort"]) || filter["sort"] == "date_asc";
+    var today = DateOnly.FromDateTime(DateTime.Today);
+    string Day(DateOnly d) => (today.DayNumber - d.DayNumber) switch { 0 => "Today", 1 => "Yesterday", _ => d.ToString(d.Year == today.Year ? "dddd, d MMMM" : "dddd, d MMMM yyyy") };
+    DateOnly? heading = null;
 }
 
-<h1>@ViewData["Title"]</h1>
+<div class="xp-page">
+    <div class="xp-main">
+        <header class="page-head">
+            <div>
+                <h1>Expenses</h1>
+                @if (Model.Count > 0)
+                {
+                    <p>@Model.Total.ToString("C0") across @Model.Count.ToString("N0") @(Model.Count == 1 ? "expense" : "expenses")@(filtered ? " matching your filters" : "").</p>
+                }
+            </div>
+            <div class="page-acts">
+                <a href="#composer" class="btn-x d-lg-none">Add expense</a>
+                <button type="submit" form="filters" asp-action="ExportCsv" class="btn-x btn-ghost">Export CSV</button>
+            </div>
+        </header>
 
-<div class="row">
-    <div class="col-md-4">
-        <h4>@(editing ? "Edit expense" : "Add expense")</h4>
-        <form asp-action="Expenses" method="post">
-            <partial name="_ExpenseFields" />
-            <button type="submit" class="btn btn-primary">@(editing ? "Save" : "Add")</button>
-            @if (editing)
+        @* Picking from a list applies it at once; text and dates wait for Apply or Enter. *@
+        <form asp-action="Expenses" method="get" id="filters" class="filters panel" onchange="if (event.target.matches('select')) this.requestSubmit()">
+            <div class="filters-search">
+                <svg class="i" aria-hidden="true"><use href="#i-search" /></svg>
+                <input type="search" name="q" value="@filter["q"]" class="f-in" placeholder="Search by title" aria-label="Search by title" />
+                <button type="submit" class="btn-x">Apply</button>
+            </div>
+            <label class="f-date"><span>From</span><input type="date" name="from" value="@filter["from"]" class="f-in" /></label>
+            <label class="f-date"><span>To</span><input type="date" name="to" value="@filter["to"]" class="f-in" /></label>
+            <select name="mode" class="f-in" aria-label="Payment mode">
+                <option value="">All modes</option>
+                @foreach (var m in Enum.GetValues<PaymentMode>())
+                {
+                    <option value="@m" selected="@(filter["mode"] == m.ToString())">@m.DisplayName()</option>
+                }
+            </select>
+            <select name="category" class="f-in" aria-label="Category">
+                <option value="">All categories</option>
+                @foreach (var c in Model.Categories)
+                {
+                    <option selected="@(filter["category"] == c)">@c</option>
+                }
+            </select>
+            <select name="sort" class="f-in" aria-label="Sort by">
+                <option value="">Newest first</option>
+                <option value="date_asc" selected="@(filter["sort"] == "date_asc")">Oldest first</option>
+                <option value="price_desc" selected="@(filter["sort"] == "price_desc")">Price: high to low</option>
+                <option value="price_asc" selected="@(filter["sort"] == "price_asc")">Price: low to high</option>
+            </select>
+            <a asp-action="Expenses" class="link-x filters-clear">Clear</a>
+        </form>
+
+        <div class="panel">
+            @if (Model.Expenses.Count == 0)
             {
-                <a asp-action="Expenses" class="btn btn-link">Cancel</a>
+                <div class="empty">
+                    @if (filtered)
+                    {
+                        <p>No expenses match these filters.</p>
+                        <a asp-action="Expenses" class="link-x">Clear filters</a>
+                    }
+                    else
+                    {
+                        <p>No expenses yet. Add your first one and it shows up here.</p>
+                    }
+                </div>
             }
-        </form>
-    </div>
-    <div class="col-md-8">
-        <form asp-action="Expenses" method="get" id="filters" class="row g-2 mb-3">
-            <div class="col-12 col-lg-4">
-                <input type="search" name="q" value="@filter["q"]" class="form-control" placeholder="Search title" aria-label="Search title" />
-            </div>
-            <div class="col-6 col-lg-4">
-                <input type="date" name="from" value="@filter["from"]" class="form-control" aria-label="From date" title="From date" />
-            </div>
-            <div class="col-6 col-lg-4">
-                <input type="date" name="to" value="@filter["to"]" class="form-control" aria-label="To date" title="To date" />
-            </div>
-            <div class="col-6 col-lg-4">
-                <select name="mode" class="form-select" aria-label="Payment mode">
-                    <option value="">All modes</option>
-                    @foreach (var m in Enum.GetValues<PaymentMode>())
+            <ul class="xp">
+                @foreach (var e in Model.Expenses)
+                {
+                    if (byDate && e.Date != heading)
                     {
-                        <option value="@m" selected="@(filter["mode"] == m.ToString())">@m.DisplayName()</option>
+                        heading = e.Date;
+                        <li class="xp-day">@Day(e.Date)</li>
                     }
-                </select>
-            </div>
-            <div class="col-6 col-lg-4">
-                <select name="category" class="form-select" aria-label="Category">
-                    <option value="">All categories</option>
-                    @foreach (var c in Model.Categories)
-                    {
-                        <option selected="@(filter["category"] == c)">@c</option>
-                    }
-                </select>
-            </div>
-            <div class="col-6 col-lg-4">
-                <select name="sort" class="form-select" aria-label="Sort by">
-                    <option value="">Newest first</option>
-                    <option value="date_asc" selected="@(filter["sort"] == "date_asc")">Oldest first</option>
-                    <option value="price_desc" selected="@(filter["sort"] == "price_desc")">Price: high to low</option>
-                    <option value="price_asc" selected="@(filter["sort"] == "price_asc")">Price: low to high</option>
-                </select>
-            </div>
-            <div class="col-12">
-                <button type="submit" class="btn btn-outline-primary">Apply</button>
-                <a asp-action="Expenses" class="btn btn-link">Clear</a>
-                <button type="submit" asp-action="ExportCsv" class="btn btn-outline-secondary float-end">Export CSV</button>
-            </div>
-        </form>
-        <div class="table-responsive">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Title</th>
-                        <th>Category</th>
-                        <th>Description</th>
-                        <th>Mode</th>
-                        <th class="text-end">Price</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var e in Model.Expenses)
-                    {
-                        <tr>
-                            <td>@e.Date.ToString("dd MMM yyyy")</td>
-                            <td>@e.Title</td>
-                            <td>@e.Category</td>
-                            <td>@e.Description</td>
-                            <td>@e.PaymentMode.DisplayName()</td>
-                            <td class="text-end">@e.Price?.ToString("C")</td>
-                            <td class="text-end text-nowrap">
-                                <a asp-action="Expenses" asp-route-edit="@e.Id" class="btn btn-sm btn-outline-primary">Edit</a>
-                                <form asp-action="DeleteExpense" asp-route-id="@e.Id" method="post" class="d-inline" onsubmit="return confirm('Delete this expense?')">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-                                </form>
-                            </td>
-                        </tr>
-                    }
-                    @if (Model.Expenses.Count == 0)
-                    {
-                        <tr><td colspan="7" class="text-muted">No expenses found.</td></tr>
-                    }
-                </tbody>
-            </table>
+                    <li class="xp-row @(e.Id == Model.Expense.Id ? "is-editing" : null)" style="--h: @Expense.Hue(e.Category)">
+                        <span class="xp-tile" aria-hidden="true">@StringInfo.GetNextTextElement(e.Category).ToUpper()</span>
+                        <div class="xp-what"><b>@e.Title</b><small><span class="xp-cat">@e.Category</span> @e.Description</small></div>
+                        <div class="xp-meta">
+                            @if (!byDate)
+                            {
+                                <span>@e.Date.ToString("d MMM yyyy")</span>
+                            }
+                            <span class="xp-mode">@e.PaymentMode.DisplayName()</span>
+                        </div>
+                        <b class="xp-amt">@e.Price?.ToString("C")</b>
+                        <div class="xp-acts">
+                            <a asp-action="Expenses" asp-route-edit="@e.Id" asp-fragment="composer" class="xp-act" title="Edit" aria-label="Edit @e.Title"><svg class="i"><use href="#i-edit" /></svg></a>
+                            <form asp-action="DeleteExpense" asp-route-id="@e.Id" method="post" onsubmit="return confirm('Delete this expense?')">
+                                <button type="submit" class="xp-act is-danger" title="Delete" aria-label="Delete @e.Title"><svg class="i"><use href="#i-trash" /></svg></button>
+                            </form>
+                        </div>
+                    </li>
+                }
+            </ul>
         </div>
+
         @if (Model.PageCount > 1)
         {
             @* Page buttons submit the filter form, so search, filters and sort carry over. *@
-            <nav aria-label="Expense pages">
-                <ul class="pagination justify-content-center">
-                    <li class="page-item @(Model.Page == 1 ? "disabled" : null)">
-                        <button type="submit" form="filters" name="page" value="@(Model.Page - 1)" class="page-link" disabled="@(Model.Page == 1)">Previous</button>
-                    </li>
-                    <li class="page-item active" aria-current="page"><span class="page-link">Page @Model.Page of @Model.PageCount</span></li>
-                    <li class="page-item @(Model.Page == Model.PageCount ? "disabled" : null)">
-                        <button type="submit" form="filters" name="page" value="@(Model.Page + 1)" class="page-link" disabled="@(Model.Page == Model.PageCount)">Next</button>
-                    </li>
-                </ul>
+            <nav class="pager" aria-label="Expense pages">
+                <button type="submit" form="filters" name="page" value="@(Model.Page - 1)" class="btn-x btn-ghost" disabled="@(Model.Page == 1)">Previous</button>
+                <span>Page @Model.Page of @Model.PageCount</span>
+                <button type="submit" form="filters" name="page" value="@(Model.Page + 1)" class="btn-x btn-ghost" disabled="@(Model.Page == Model.PageCount)">Next</button>
             </nav>
         }
     </div>
+
+    <aside class="panel composer" id="composer">
+        <h2 class="mb-3">@(editing ? "Edit expense" : "Add an expense")</h2>
+        <form asp-action="Expenses" method="post">
+            <partial name="_ExpenseFields" />
+            <div class="composer-acts">
+                <button type="submit" class="btn-x">@(editing ? "Update expense" : "Add expense")</button>
+                @if (editing)
+                {
+                    <a asp-action="Expenses" class="btn-x btn-ghost">Cancel</a>
+                }
+            </div>
+        </form>
+    </aside>
 </div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    @* After a rejected save the form may be below the list (on phones): bring its first error into view. *@
+    <script>document.querySelector('.composer .input-validation-error')?.focus();</script>
 }

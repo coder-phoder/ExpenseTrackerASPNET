@@ -1,42 +1,112 @@
-@model (decimal MonthTotal, List<Expense> Recent)
+@using System.Globalization
+@using ExpenseTracker.Controllers
+@model DashboardSummary
 @{
-    ViewData["Title"] = "Dashboard";
+    ViewData["Title"] = "Home";
+    var today = Model.Today;
+    var month = today.ToString("MMMM");
+    var lastName = today.AddMonths(-1).ToString("MMMM");
+    var cats = Model.Categories;
+    var total = cats.Sum(c => c.Amount);
+    var last = Model.LastMonth;
+
+    // The tide: last month's total is drawn at 70% of its height, so this month reads against it. The top 6% stays free for the waves.
+    var level = last > 0 ? Math.Min(total / last * .7m, .94m) : total > 0 ? .6m : 0;
+    if (total > 0) level = Math.Max(level, .05m);
+    string Pct(decimal v) => (v * 100).ToString("0.###", CultureInfo.InvariantCulture) + "%";
+    string Day(DateOnly d) => (today.DayNumber - d.DayNumber) switch { 0 => "Today", 1 => "Yesterday", _ => d.ToString(d.Year == today.Year ? "d MMM" : "d MMM yyyy") };
+
+    // The big number is painted in this month's category colours, biggest first, like the tide below it.
+    var stops = cats.Select(c => $"oklch(var(--tx-l) var(--tx-c) {Expense.Hue(c.Key)})").ToList();
+    var paint = stops.Count switch { 0 => null, 1 => $"--paint: {stops[0]}", _ => $"--paint: linear-gradient(100deg, {string.Join(", ", stops)})" };
+    var sub = total == 0 ? "Nothing logged yet this month."
+        : last == 0 ? $"About {total / today.Day:C0} a day so far."
+        : total <= last ? $"That's {total / last:P0} of what you spent in {lastName}."
+        : $"That's {total - last:C0} more than all of {lastName}.";
+    var quickAdd = new ExpensesViewModel([], new Expense { Date = today }, Model.AllCategories);
 }
 
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <h1 class="mb-0">Welcome, @User.Identity?.Name</h1>
-    <a asp-action="Expenses" class="btn btn-primary">Add expense</a>
+<section class="hero">
+    <div>
+        <p class="hero-hi">Hi, @User.Identity?.Name?.Split(' ')[0]</p>
+        <h1>
+            <span class="hero-num" style="@paint">@total.ToString("C0")</span>
+            <span class="hero-label">spent in @month so far</span>
+        </h1>
+        <p class="hero-sub">@sub</p>
+    </div>
+    <a href="#quick-add" class="btn-x">Add an expense</a>
+</section>
+
+@* Decorative: the list under it says the same thing in words. *@
+<div class="tide" aria-hidden="true">
+    <div class="tide-fill" style="--f: @level.ToString(CultureInfo.InvariantCulture)">
+        @if (total == 0)
+        {
+            <div class="layer layer--empty" style="--b: 0%; --s: 8%; --z: 1; --t: 11s"></div>
+        }
+        @{ var below = 0m; }
+        @for (var i = 0; i < cats.Count; i++)
+        {
+            var share = cats[i].Amount / total * level;
+            <div class="layer" style="--h: @Expense.Hue(cats[i].Key); --b: @Pct(below); --s: @Pct(share); --z: @(cats.Count - i); --t: @(7000 + i * 1700)ms">
+                @if (share >= .1m)
+                {
+                    <div class="container"><b>@cats[i].Key</b> @cats[i].Amount.ToString("C0")</div>
+                }
+            </div>
+            below += share;
+        }
+    </div>
+    @if (last > 0)
+    {
+        <div class="tide-mark"><div class="container"><span>@lastName @last.ToString("C0")</span></div></div>
+    }
 </div>
 
-<div class="row g-3">
-    <div class="col-md-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <div class="small text-body-secondary">Spent in @DateTime.Today.ToString("MMMM yyyy")</div>
-                <div class="fs-3 fw-semibold">@Model.MonthTotal.ToString("C")</div>
-                <a asp-action="Analytics" class="small">View analytics</a>
-            </div>
+@if (cats.Count > 0)
+{
+    <ul class="legend" aria-label="Spending by category in @month">
+        @foreach (var c in cats)
+        {
+            <li style="--h: @Expense.Hue(c.Key)"><i></i>@c.Key <b class="num">@c.Amount.ToString("C0")</b> <span>@((c.Amount / total).ToString("P0"))</span></li>
+        }
+    </ul>
+}
+
+<div class="home-grid">
+    <section class="panel">
+        <div class="panel-head">
+            <h2>Recent expenses</h2>
+            <a asp-action="Expenses" class="link-x">See all</a>
         </div>
-    </div>
-    <div class="col-md-8">
-        <div class="card h-100">
-            <div class="card-header d-flex justify-content-between">
-                <span>Recent expenses</span>
-                <a asp-action="Expenses" class="small">View all</a>
-            </div>
-            <ul class="list-group list-group-flush">
-                @foreach (var e in Model.Recent)
-                {
-                    <li class="list-group-item d-flex justify-content-between gap-3">
-                        <span>@e.Title <span class="small text-body-secondary text-nowrap">· @e.Date.ToString("dd MMM yyyy")</span></span>
-                        <span class="text-nowrap">@e.Price?.ToString("C")</span>
-                    </li>
-                }
-                @if (Model.Recent.Count == 0)
-                {
-                    <li class="list-group-item text-body-secondary">No expenses yet.</li>
-                }
-            </ul>
-        </div>
-    </div>
+        @if (Model.Recent.Count == 0)
+        {
+            <p class="empty">Expenses you add show up here.</p>
+        }
+        <ul class="xp">
+            @foreach (var e in Model.Recent)
+            {
+                <li class="xp-row" style="--h: @Expense.Hue(e.Category)">
+                    <span class="xp-tile" aria-hidden="true">@StringInfo.GetNextTextElement(e.Category).ToUpper()</span>
+                    <div class="xp-what"><b>@e.Title</b><small><span class="xp-cat">@e.Category</span> @e.Description</small></div>
+                    <div class="xp-meta">@Day(e.Date)</div>
+                    <b class="xp-amt">@e.Price?.ToString("C")</b>
+                </li>
+            }
+        </ul>
+    </section>
+
+    <section class="panel" id="quick-add">
+        <h2 class="mb-3">Add an expense</h2>
+        <form asp-action="Expenses" method="post">
+            <partial name="_ExpenseFields" model="quickAdd" />
+            <input type="hidden" name="returnUrl" value="@Url.Action("Dashboard")" />
+            <button type="submit" class="btn-x w-100">Add expense</button>
+        </form>
+    </section>
 </div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

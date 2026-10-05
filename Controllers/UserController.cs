@@ -34,9 +34,13 @@ public class UserController(AppDbContext db, IConfiguration config) : Controller
         var today = DateOnly.FromDateTime(DateTime.Today);
         var first = new DateOnly(today.Year, today.Month, 1);
         var expenses = db.Expenses.Where(e => e.UserId == CurrentUserId);
-        var monthTotal = await expenses.Where(e => e.Date >= first && e.Date < first.AddMonths(1)).SumAsync(e => e.Price) ?? 0;
-        var recent = await expenses.OrderByDescending(e => e.Date).ThenByDescending(e => e.Id).Take(5).ToListAsync();
-        return View((monthTotal, recent));
+        var categories = await expenses.Where(e => e.Date >= first && e.Date < first.AddMonths(1))
+            .GroupBy(e => e.Category)
+            .Select(g => new Total<string>(g.Key, g.Sum(e => e.Price) ?? 0))
+            .ToListAsync();
+        var lastMonth = await expenses.Where(e => e.Date >= first.AddMonths(-1) && e.Date < first).SumAsync(e => e.Price) ?? 0;
+        var recent = await expenses.OrderByDescending(e => e.Date).ThenByDescending(e => e.Id).Take(6).ToListAsync();
+        return View(new DashboardSummary(today, lastMonth, [.. categories.OrderByDescending(c => c.Amount)], recent, await CategoriesAsync()));
     }
 
     [Authorize]
@@ -218,10 +222,12 @@ public class UserController(AppDbContext db, IConfiguration config) : Controller
     private async Task<IActionResult> ExpensesView(Expense expense, string? q = null, DateOnly? from = null, DateOnly? to = null, PaymentMode? mode = null, string? category = null, string? sort = null, int page = 1)
     {
         var expenses = Filter(q, from, to, mode, category, sort);
-        var pageCount = Math.Max(1, (await expenses.CountAsync() + PageSize - 1) / PageSize);
+        var count = await expenses.CountAsync();
+        var pageCount = Math.Max(1, (count + PageSize - 1) / PageSize);
         page = Math.Clamp(page, 1, pageCount);
         var pageItems = await expenses.Skip((page - 1) * PageSize).Take(PageSize).ToListAsync();
-        return View(nameof(Expenses), new ExpensesViewModel(pageItems, expense, await CategoriesAsync(), Page: page, PageCount: pageCount));
+        var total = await expenses.SumAsync(e => e.Price) ?? 0;
+        return View(nameof(Expenses), new ExpensesViewModel(pageItems, expense, await CategoriesAsync(), Page: page, PageCount: pageCount, Count: count, Total: total));
     }
 
     private IQueryable<Expense> Filter(string? q, DateOnly? from, DateOnly? to, PaymentMode? mode, string? category, string? sort)
@@ -256,3 +262,6 @@ public class UserController(AppDbContext db, IConfiguration config) : Controller
         };
     }
 }
+
+// Categories hold this month's totals, largest first; AllCategories feeds the quick-add form.
+public record DashboardSummary(DateOnly Today, decimal LastMonth, List<Total<string>> Categories, List<Expense> Recent, IReadOnlyList<string> AllCategories);
