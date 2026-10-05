@@ -13,7 +13,7 @@ namespace ExpenseTracker.Controllers;
 
 public class UserController(AppDbContext db, IConfiguration config) : Controller
 {
-    private const int PageSize = 20;
+    public const int PageSize = 20;
 
     public IActionResult Index()
     {
@@ -34,13 +34,17 @@ public class UserController(AppDbContext db, IConfiguration config) : Controller
         var today = DateOnly.FromDateTime(DateTime.Today);
         var first = new DateOnly(today.Year, today.Month, 1);
         var expenses = db.Expenses.Where(e => e.UserId == CurrentUserId);
+        // Daily totals for last month and this one: the pace chart and the headline numbers all come from these.
+        var days = await expenses.Where(e => e.Date >= first.AddMonths(-1) && e.Date < first.AddMonths(1))
+            .GroupBy(e => e.Date)
+            .Select(g => new Total<DateOnly>(g.Key, g.Sum(e => e.Price) ?? 0))
+            .ToDictionaryAsync(d => d.Key, d => d.Amount);
         var categories = await expenses.Where(e => e.Date >= first && e.Date < first.AddMonths(1))
             .GroupBy(e => e.Category)
             .Select(g => new Total<string>(g.Key, g.Sum(e => e.Price) ?? 0))
             .ToListAsync();
-        var lastMonth = await expenses.Where(e => e.Date >= first.AddMonths(-1) && e.Date < first).SumAsync(e => e.Price) ?? 0;
         var recent = await expenses.OrderByDescending(e => e.Date).ThenByDescending(e => e.Id).Take(6).ToListAsync();
-        return View(new DashboardSummary(today, lastMonth, [.. categories.OrderByDescending(c => c.Amount)], recent, await CategoriesAsync()));
+        return View(new DashboardSummary(today, days, [.. categories.OrderByDescending(c => c.Amount)], recent, await CategoriesAsync()));
     }
 
     [Authorize]
@@ -113,17 +117,8 @@ public class UserController(AppDbContext db, IConfiguration config) : Controller
     }
 
     [Authorize]
-    public async Task<IActionResult> Expenses(int? edit, DateOnly? date, string? q, DateOnly? from, DateOnly? to, PaymentMode? mode, string? category, string? sort, int page = 1)
-    {
-        var expense = edit == null
-            ? new Expense { Date = date ?? DateOnly.FromDateTime(DateTime.Today) }
-            : await db.Expenses.SingleOrDefaultAsync(e => e.Id == edit && e.UserId == CurrentUserId);
-        if (expense == null)
-        {
-            return NotFound();
-        }
-        return await ExpensesView(expense, q, from, to, mode, category, sort, page);
-    }
+    public Task<IActionResult> Expenses(DateOnly? date, string? q, DateOnly? from, DateOnly? to, PaymentMode? mode, string? category, string? sort, int page = 1) =>
+        ExpensesView(new Expense { Date = date ?? DateOnly.FromDateTime(DateTime.Today) }, q, from, to, mode, category, sort, page);
 
     // Exports every row matching the list's filters and sort, not just the current page.
     [Authorize]
@@ -263,5 +258,5 @@ public class UserController(AppDbContext db, IConfiguration config) : Controller
     }
 }
 
-// Categories hold this month's totals, largest first; AllCategories feeds the quick-add form.
-public record DashboardSummary(DateOnly Today, decimal LastMonth, List<Total<string>> Categories, List<Expense> Recent, IReadOnlyList<string> AllCategories);
+// Days holds each day's total over last month and this one; Categories this month's totals, largest first; AllCategories feeds the expense form.
+public record DashboardSummary(DateOnly Today, Dictionary<DateOnly, decimal> Days, List<Total<string>> Categories, List<Expense> Recent, IReadOnlyList<string> AllCategories);

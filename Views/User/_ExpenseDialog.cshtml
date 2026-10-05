@@ -1,0 +1,24 @@
+@model ExpensesViewModel
+@{
+    var editing = Model.Expense.Id != 0;
+    // Saving returns to the page it was opened from; after a rejected save, to where the first attempt came from.
+    var returnUrl = Context.Request.HasFormContentType ? Context.Request.Form["returnUrl"].ToString() : $"{Context.Request.Path}{Context.Request.QueryString}";
+}
+
+@* Opened by any [data-expense] button (site.js), which also fills it in for an edit. *@
+<dialog id="expense-dialog" class="sheet" aria-labelledby="expense-dialog-title">
+    <form asp-controller="User" asp-action="Expenses" method="post">
+        <div class="sheet-head">
+            <h2 id="expense-dialog-title">@(editing ? "Edit expense" : "New expense")</h2>
+            <button type="button" class="btn-close" aria-label="Close" onclick="this.closest('dialog').close()"></button>
+        </div>
+        <div class="sheet-body">
+            <partial name="_ExpenseFields" />
+        </div>
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
+        <div class="sheet-foot">
+            <button type="button" class="btn btn-outline-secondary" onclick="this.closest('dialog').close()">Cancel</button>
+            <button type="submit" class="btn btn-primary">@(editing ? "Save changes" : "Add expense")</button>
+        </div>
+    </form>
+</dialog>

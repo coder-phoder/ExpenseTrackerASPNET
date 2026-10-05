@@ -1,18 +1,22 @@
-// Expense form: a category chip fills in the category, and the chip matching what's typed lights up.
-function syncChips(input) {
-    const value = input.value.trim().toLowerCase();
-    input.form.querySelectorAll('[data-category]').forEach(chip => chip.setAttribute('aria-pressed', chip.dataset.category.toLowerCase() === value));
-}
-
+// Expense dialog (Overview, Expenses): any [data-expense] button opens it, filled from the button's data-* attributes.
+// "New expense" buttons carry just an id of 0, today's date and the default payment mode.
 document.addEventListener('click', e => {
-    const chip = e.target.closest('[data-category]');
-    if (!chip) return;
-    const input = chip.form.elements['Expense.Category'];
-    input.value = chip.dataset.category;
-    syncChips(input);
-    window.jQuery?.(input).valid?.(); // clears a "required" error left from an earlier submit
+    const dialog = document.getElementById('expense-dialog');
+    const opener = e.target.closest('[data-expense]');
+    if (!dialog || !opener) return;
+    const form = dialog.querySelector('form');
+    const d = opener.dataset;
+    form.reset(); // also clears earlier validation messages: jquery.validate.unobtrusive listens for reset
+    for (const name of ['Id', 'Title', 'Price', 'Category', 'Date', 'PaymentMode', 'Description']) {
+        form.elements['Expense.' + name].value = d[name.toLowerCase()] ?? '';
+    }
+    const editing = d.id !== '0';
+    dialog.querySelector('h2').textContent = editing ? 'Edit expense' : 'New expense';
+    form.querySelector('[type=submit]').textContent = editing ? 'Save changes' : 'Add expense';
+    dialog.showModal();
 });
 
-document.addEventListener('input', e => {
-    if (e.target.name === 'Expense.Category') syncChips(e.target);
+// A click on the backdrop closes the dialog (the form fills the dialog, so only the backdrop hits the dialog itself).
+document.addEventListener('click', e => {
+    if (e.target.id === 'expense-dialog') e.target.close();
 });
