@@ -406,6 +406,11 @@ svg.i {
   color: var(--ink);
 }
 
+.icon-btn[aria-current=page] {
+  background: var(--hover);
+  color: var(--accent);
+}
+
 .icon-btn.is-danger:hover {
   background: var(--up-soft);
   color: var(--up);

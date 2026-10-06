@@ -2,7 +2,7 @@
     var signedIn = User.Identity?.IsAuthenticated == true;
     // The admin's Home is the admin overview, so it gets no section links.
     (string Action, string Label, string Icon)[] links = signedIn && !User.IsInRole("Admin")
-        ? [("Dashboard", "Overview", "home"), ("Expenses", "Expenses", "list"), ("Calendar", "Calendar", "calendar"), ("Analytics", "Analytics", "chart"), ("Profile", "Profile", "user")]
+        ? [("Dashboard", "Overview", "home"), ("Expenses", "Expenses", "list"), ("Calendar", "Calendar", "calendar"), ("Analytics", "Analytics", "chart")]
         : [];
     var action = ViewContext.RouteData.Values["action"] as string;
     // The statement is opened from the calendar, so it stays in that section.
@@ -81,6 +81,9 @@
                     <div class="side-user">
                         <span class="avatar" aria-hidden="true">@initials</span>
                         <span class="text-truncate">@name</span>
+                        <a class="icon-btn ms-auto" asp-controller="User" asp-action="Profile" aria-label="Profile" title="Profile" aria-current="@(current == "Profile" ? "page" : null)">
+                            <svg class="i"><use href="#i-user" /></svg>
+                        </a>
                     </div>
                 }
                 <partial name="_ThemeToggle" model='"side-link"' />
