@@ -3,7 +3,8 @@
 @{
     ViewData["Title"] = "Expenses";
     var filter = Context.Request.Query;
-    var filtered = new[] { "q", "from", "to", "mode", "category" }.Any(k => !string.IsNullOrEmpty(filter[k]));
+    var activeFilters = new[] { "from", "to", "mode", "category" }.Count(k => !string.IsNullOrEmpty(filter[k]));
+    var filtered = activeFilters > 0 || !string.IsNullOrEmpty(filter["q"]);
     var here = $"{Context.Request.Path}{Context.Request.QueryString}";
     var today = DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd");
     var firstRow = (Model.Page - 1) * UserController.PageSize + 1;
@@ -18,43 +19,57 @@
         }
     </div>
     <div class="page-actions">
-        <button type="submit" form="filters" asp-action="ExportCsv" class="btn btn-outline-secondary"><svg class="i"><use href="#i-download" /></svg>Export CSV</button>
+        <a href="@Url.Action("ExportCsv")@Context.Request.QueryString" class="btn btn-outline-secondary"><svg class="i"><use href="#i-download" /></svg>Export CSV</a>
         <button type="button" class="btn btn-primary" data-expense data-id="0" data-date="@today" data-paymentmode="0"><svg class="i"><use href="#i-plus" /></svg>New expense</button>
     </div>
 </div>
 
-@* Choosing from a list applies it straight away; search text and dates apply with Enter or Apply. *@
-<form asp-action="Expenses" method="get" id="filters" class="toolbar" onchange="if (event.target.matches('select')) this.requestSubmit()">
+@* Sort applies straight away; search applies with Enter, and the filters in the panel with Apply. *@
+<form asp-action="Expenses" method="get" id="filters" class="toolbar" onchange="if (event.target.name == 'sort') this.requestSubmit()">
     <div class="search">
         <svg class="i" aria-hidden="true"><use href="#i-search" /></svg>
         <input type="search" name="q" value="@filter["q"]" class="form-control" placeholder="Search by title" aria-label="Search by title" />
     </div>
-    <div class="range">
-        <input type="date" name="from" value="@filter["from"]" class="form-control" aria-label="From date" title="From date" />
-        <span>to</span>
-        <input type="date" name="to" value="@filter["to"]" class="form-control" aria-label="To date" title="To date" />
+    <div class="dropdown">
+        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+            <svg class="i"><use href="#i-filter" /></svg>Filters
+            @if (activeFilters > 0)
+            {
+                <span class="badge-x">@activeFilters</span>
+            }
+        </button>
+        <div class="dropdown-menu dropdown-menu-end filter-panel">
+            <label class="form-label" for="f-from">Date</label>
+            <div class="range">
+                <input type="date" name="from" id="f-from" value="@filter["from"]" class="form-control" aria-label="From date" />
+                <span>to</span>
+                <input type="date" name="to" value="@filter["to"]" class="form-control" aria-label="To date" />
+            </div>
+            <label class="form-label" for="f-mode">Payment mode</label>
+            <select name="mode" id="f-mode" class="form-select">
+                <option value="">All payment modes</option>
+                @foreach (var m in Enum.GetValues<PaymentMode>())
+                {
+                    <option value="@m" selected="@(filter["mode"] == m.ToString())">@m.DisplayName()</option>
+                }
+            </select>
+            <label class="form-label" for="f-category">Category</label>
+            <select name="category" id="f-category" class="form-select">
+                <option value="">All categories</option>
+                @foreach (var c in Model.Categories)
+                {
+                    <option selected="@(filter["category"] == c)">@c</option>
+                }
+            </select>
+            <button type="submit" class="btn btn-primary">Apply</button>
+        </div>
     </div>
-    <select name="mode" class="form-select" aria-label="Payment mode">
-        <option value="">All payment modes</option>
-        @foreach (var m in Enum.GetValues<PaymentMode>())
-        {
-            <option value="@m" selected="@(filter["mode"] == m.ToString())">@m.DisplayName()</option>
-        }
-    </select>
-    <select name="category" class="form-select" aria-label="Category">
-        <option value="">All categories</option>
-        @foreach (var c in Model.Categories)
-        {
-            <option selected="@(filter["category"] == c)">@c</option>
-        }
-    </select>
     <select name="sort" class="form-select" aria-label="Sort by">
         <option value="">Newest first</option>
         <option value="date_asc" selected="@(filter["sort"] == "date_asc")">Oldest first</option>
         <option value="price_desc" selected="@(filter["sort"] == "price_desc")">Highest amount</option>
         <option value="price_asc" selected="@(filter["sort"] == "price_asc")">Lowest amount</option>
     </select>
-    <button type="submit" class="btn btn-outline-secondary">Apply</button>
     @if (filtered || !string.IsNullOrEmpty(filter["sort"]))
     {
         <a asp-action="Expenses" class="btn btn-link">Clear</a>

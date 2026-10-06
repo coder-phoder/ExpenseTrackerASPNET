@@ -1057,6 +1057,38 @@ svg.i {
   width: auto;
 }
 
+.filter-panel {
+  width: min(22rem, calc(100vw - 2rem));
+  padding: 1rem;
+  border-color: var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.filter-panel.show {
+  display: grid;
+  gap: .375rem;
+}
+
+.filter-panel .form-label {
+  margin: .375rem 0 0;
+  font-size: .8125rem;
+  color: var(--muted);
+}
+
+.filter-panel .form-select {
+  width: 100%;
+}
+
+.filter-panel .range .form-control {
+  flex: 1;
+  min-width: 0;
+}
+
+.filter-panel .btn {
+  margin-top: .625rem;
+}
+
 /* Expense dialog (native <dialog>) */
 .sheet {
   width: min(34rem, calc(100% - 2rem));
