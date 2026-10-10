@@ -6,53 +6,51 @@
     var totals = Model.Expenses.GroupBy(e => e.Date).ToDictionary(g => g.Key, g => g.Sum(e => e.Price ?? 0));
 }
 
-<h1>@month.ToString("MMMM yyyy")</h1>
-
-<div class="mb-3">
-    <a asp-action="Calendar" asp-route-month="@month.AddMonths(-1).ToString("yyyy-MM")" class="btn btn-outline-secondary">&laquo; Previous</a>
-    <a asp-action="Calendar" class="btn btn-outline-secondary">Today</a>
-    <a asp-action="Calendar" asp-route-month="@month.AddMonths(1).ToString("yyyy-MM")" class="btn btn-outline-secondary">Next &raquo;</a>
-    <a asp-action="Statement" asp-route-month="@month.ToString("yyyy-MM")" class="btn btn-outline-primary">Monthly statement</a>
+<div class="page-head">
+    <div>
+        <h1>@month.ToString("MMMM yyyy")</h1>
+        <p>@totals.Values.Sum().ToString("C") spent this month</p>
+    </div>
+    <div class="page-actions">
+        <a asp-action="Calendar" asp-route-month="@month.AddMonths(-1).ToString("yyyy-MM")" class="btn btn-outline-secondary" aria-label="Previous month">&lsaquo;</a>
+        <a asp-action="Calendar" class="btn btn-outline-secondary">Today</a>
+        <a asp-action="Calendar" asp-route-month="@month.AddMonths(1).ToString("yyyy-MM")" class="btn btn-outline-secondary" aria-label="Next month">&rsaquo;</a>
+        <a asp-action="Statement" asp-route-month="@month.ToString("yyyy-MM")" class="btn btn-primary"><svg class="i"><use href="#i-download" /></svg>Print PDF</a>
+    </div>
 </div>
 
-<table class="table table-bordered text-center">
-    <thead>
-        <tr>
-            @foreach (var name in System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.AbbreviatedDayNames)
-            {
-                <th>@name</th>
-            }
-        </tr>
-    </thead>
-    <tbody>
-        @for (var week = month.AddDays(-(int)month.DayOfWeek); week < month.AddMonths(1); week = week.AddDays(7))
+<section class="card-x cal-card">
+    <div class="cal-grid">
+        @foreach (var name in new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Total" })
         {
-            <tr>
-                @for (var day = week; day < week.AddDays(7); day = day.AddDays(1))
-                {
-                    if (day.Month == month.Month)
-                    {
-                        var date = day.ToString("yyyy-MM-dd");
-                        <td class="@(day == today ? "bg-primary-subtle" : null)">
-                            <a asp-action="Expenses" asp-route-date="@date" class="d-block text-decoration-none" title="@day.ToString("dd MMM yyyy")"
-                               data-date="@date" data-bs-toggle="modal" data-bs-target="#dayModal">
-                                @day.Day
-                                @if (totals.TryGetValue(day, out var total))
-                                {
-                                    <span class="d-block small fw-semibold text-body">@total.ToString("C0")</span>
-                                }
-                            </a>
-                        </td>
-                    }
-                    else
-                    {
-                        <td></td>
-                    }
-                }
-            </tr>
+            <div class="cal-dow @(name is "Sat" or "Sun" ? "weekend" : name == "Total" ? "total" : null)">@name</div>
         }
-    </tbody>
-</table>
+        @for (var week = month.AddDays(-(((int)month.DayOfWeek + 6) % 7)); week < month.AddMonths(1); week = week.AddDays(7))
+        {
+            decimal weekTotal = 0;
+            for (var day = week; day < week.AddDays(7); day = day.AddDays(1))
+            {
+                if (day.Month != month.Month)
+                {
+                    <div></div>
+                    continue;
+                }
+                var date = day.ToString("yyyy-MM-dd");
+                var hasTotal = totals.TryGetValue(day, out var total);
+                weekTotal += total;
+                <a asp-action="Expenses" asp-route-date="@date" class="cal-day @(day == today ? "today" : null)" title="@day.ToString("dd MMM yyyy")"
+                   data-date="@date" data-bs-toggle="modal" data-bs-target="#dayModal">
+                    @day.Day
+                    @if (hasTotal)
+                    {
+                        <span>@total.ToString("C0")</span>
+                    }
+                </a>
+            }
+            <div class="cal-day total">@weekTotal.ToString("C0")</div>
+        }
+    </div>
+</section>
 
 <div class="modal fade" id="dayModal" tabindex="-1" aria-labelledby="dayModalTitle" aria-hidden="true">
     <div class="modal-dialog">
