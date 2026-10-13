@@ -8,13 +8,15 @@
     var prev = first.AddMonths(-1);
     var daysThis = DateTime.DaysInMonth(first.Year, first.Month);
     var daysPrev = DateTime.DaysInMonth(prev.Year, prev.Month);
+    var todayValue = today.ToString("yyyy-MM-dd");
     string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+    decimal On(DateOnly d) => Model.Days.GetValueOrDefault(d);
 
     // Running totals by day of the month: this month up to today, last month in full.
     decimal[] Running(DateOnly start, int days)
     {
         var sum = 0m;
-        return Enumerable.Range(0, days).Select(i => sum += Model.Days.GetValueOrDefault(start.AddDays(i))).ToArray();
+        return Enumerable.Range(0, days).Select(i => sum += On(start.AddDays(i))).ToArray();
     }
     var now = Running(first, today.Day);
     var before = Running(prev, daysPrev);
@@ -22,9 +24,17 @@
     var toDate = now[^1];
     var compareDay = Math.Min(today.Day, daysPrev);
     var beforeToDate = before[compareDay - 1];
+    var prevTotal = before[^1];
     var average = toDate / today.Day;
+    var projected = average * daysThis;
     var thisName = first.ToString("MMMM");
     var prevName = prev.ToString("MMMM");
+
+    var hour = DateTime.Now.Hour;
+    var greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+    var firstName = User.Identity!.Name!.Split(' ', StringSplitOptions.RemoveEmptyEntries)[0];
+    var week = Enumerable.Range(-6, 7).Select(i => today.AddDays(i)).Select(d => (Day: d, Amount: On(d))).ToArray();
+    var weekMax = week.Max(w => w.Amount);
 
     // Chart scale: days on x, a 1-2-5 step on y with about four gridlines.
     var n = Math.Max(daysThis, daysPrev);
@@ -42,121 +52,215 @@
     double Y(decimal v) => 300 - (double)(v / top) * 300;
     string Line(decimal[] run) => "M" + string.Join(" L", run.Select((v, i) => $"{F(X(i + 1))} {F(Y(v))}"));
 
+    // A category keeps its colour across the donut, its legend and the activity feed; the rest share a neutral one.
     var cats = Model.Categories;
     var shown = cats.Take(5).Select((c, i) => (c.Key, c.Amount, Color: $"var(--series-{i + 1})")).ToList();
+    var colorOf = shown.ToDictionary(s => s.Key, s => s.Color);
     if (cats.Count > 5)
     {
         shown.Add(($"{cats.Count - 5} more", cats.Skip(5).Sum(c => c.Amount), "var(--rest)"));
     }
+    // Donut slices: each runs from the running share before it to the one after it.
+    var at = 0m;
+    var donut = string.Join(", ", shown.Select(s => $"{s.Color} {F((double)(at / spent * 100))}% {F((double)((at += s.Amount) / spent * 100))}%"));
+    // Quick add: this month's top categories first, topped up with the built-ins.
+    var quick = cats.Select(c => c.Key).Union(Expense.DefaultCategories, StringComparer.OrdinalIgnoreCase).Take(4);
+    string DayName(DateOnly d) => d == today ? "Today" : d == today.AddDays(-1) ? "Yesterday" : d.ToString(d.Year == today.Year ? "dddd, d MMM" : "d MMM yyyy");
     var newExpense = new ExpensesViewModel([], new Expense { Date = today }, Model.AllCategories);
+
+    void Delta(decimal current, decimal baseline)
+    {
+        var change = (current - baseline) / baseline;
+        <span class="delta @(change > 0 ? "is-up" : "is-down")">@(change > 0 ? "+" : "")@change.ToString("P0")</span>
+    }
 }
 
-<div class="page-head">
+<section class="hero">
     <div>
-        <h1>Overview</h1>
-        <p>@today.ToString("dddd, d MMMM yyyy")</p>
-    </div>
-    <button type="button" class="btn btn-primary" data-expense data-id="0" data-date="@today.ToString("yyyy-MM-dd")" data-paymentmode="0">
-        <svg class="i"><use href="#i-plus" /></svg>New expense
-    </button>
-</div>
-
-<section class="stats" aria-label="Summary">
-    <div class="stat">
-        <span class="stat-label">Spent in @thisName</span>
-        <strong class="stat-value">@spent.ToString("C0")</strong>
-        <span class="stat-note">
+        <p class="hero-date">@today.ToString("dddd, d MMMM yyyy")</p>
+        <h1>@greeting, @firstName</h1>
+        <div class="hero-total">
+            <strong class="stat-value">@spent.ToString("C0")</strong>
+            <span>spent in @thisName</span>
+        </div>
+        <p class="stat-note">
             @if (beforeToDate > 0)
             {
-                var change = (toDate - beforeToDate) / beforeToDate;
-                <span class="delta @(change > 0 ? "is-up" : "is-down")">@(change > 0 ? "+" : "")@change.ToString("P0")</span>
+                Delta(toDate, beforeToDate);
                 @($"vs. 1–{compareDay} {prev:MMM}")
             }
             else
             {
                 @($"No spending by {compareDay} {prev:MMM} to compare")
             }
-        </span>
+        </p>
+    </div>
+    <div class="hero-actions">
+        <button type="button" class="btn btn-primary" data-expense data-id="0" data-date="@todayValue" data-paymentmode="0">
+            <svg class="i"><use href="#i-plus" /></svg>New expense
+        </button>
+        <div class="chips" role="group" aria-label="Quick add">
+            @foreach (var c in quick)
+            {
+                <button type="button" class="chip" data-expense data-id="0" data-date="@todayValue" data-paymentmode="0" data-category="@c">
+                    <svg class="i" aria-hidden="true"><use href="#i-plus" /></svg>@c
+                </button>
+            }
+        </div>
+    </div>
+    @if (prevTotal > 0)
+    {
+        // The fill is this month against all of last month; the marker is how far through the month today is.
+        var share = spent / prevTotal;
+        <div class="meter">
+            <div class="meter-bar" role="img" aria-label="@($"{share:P0} of {prevName}'s {prevTotal:C0} spent, {today.Day} of {daysThis} days into {thisName}")">
+                <i class="@(share > 1 ? "is-over" : null)" style="width: @F((double)Math.Min(share, 1) * 100)%"></i>
+                <b style="left: @F(today.Day * 100.0 / daysThis)%" title="Day @today.Day of @daysThis"></b>
+            </div>
+            <div class="meter-labels" aria-hidden="true">
+                <span><strong>@share.ToString("P0")</strong> of @prevName's @prevTotal.ToString("C0")</span>
+                <span>Day @today.Day of @daysThis</span>
+            </div>
+        </div>
+    }
+</section>
+
+<section class="stats" aria-label="Summary">
+    <div class="stat">
+        <span class="stat-label"><svg class="i" aria-hidden="true"><use href="#i-clock" /></svg>Today</span>
+        <strong class="stat-value">@On(today).ToString("C0")</strong>
+        <span class="stat-note">Yesterday @On(today.AddDays(-1)).ToString("C0")</span>
     </div>
     <div class="stat">
-        <span class="stat-label">Daily average</span>
+        <span class="stat-label"><svg class="i" aria-hidden="true"><use href="#i-calendar" /></svg>Last 7 days</span>
+        <strong class="stat-value">@week.Sum(w => w.Amount).ToString("C0")</strong>
+        <div class="spark" aria-hidden="true">
+            @foreach (var (day, amount) in week)
+            {
+                <i class="@(day == today ? "is-today" : null)" style="--h: @F(weekMax == 0 ? 0 : (double)(amount / weekMax) * 100)%" title="@day.ToString("ddd d MMM"): @amount.ToString("C0")"></i>
+            }
+        </div>
+    </div>
+    <div class="stat">
+        <span class="stat-label"><svg class="i" aria-hidden="true"><use href="#i-chart" /></svg>Daily average</span>
         <strong class="stat-value">@average.ToString("C0")</strong>
         <span class="stat-note">Over @today.Day @(today.Day == 1 ? "day" : "days")</span>
     </div>
     <div class="stat">
-        <span class="stat-label">Projected for @thisName</span>
-        <strong class="stat-value">@((average * daysThis).ToString("C0"))</strong>
-        <span class="stat-note">At the current daily average</span>
+        <span class="stat-label"><svg class="i" aria-hidden="true"><use href="#i-trend" /></svg>Projected</span>
+        <strong class="stat-value">@projected.ToString("C0")</strong>
+        <span class="stat-note">
+            @if (prevTotal > 0)
+            {
+                Delta(projected, prevTotal);
+                @($"vs. {prevName}")
+            }
+            else
+            {
+                @("At the current daily average")
+            }
+        </span>
     </div>
-    <div class="stat">
-        <span class="stat-label">Spent in @prevName</span>
-        <strong class="stat-value">@before[^1].ToString("C0")</strong>
-        <span class="stat-note">Full month</span>
+</section>
+
+<section class="card-x">
+    <div class="card-x-head">
+        <div>
+            <h2>Spending pace</h2>
+            <p>Running total through the month</p>
+        </div>
+        <div class="pace-key" aria-hidden="true">
+            <span><i class="key-now"></i>@thisName</span>
+            <span><i class="key-before"></i>@prevName</span>
+        </div>
     </div>
+    @if (max == 0)
+    {
+        <p class="empty">Your running total appears here once you add expenses.</p>
+    }
+    else
+    {
+        <div class="pace" role="img" aria-label="@($"{toDate:C0} spent by {today:d MMM}, against {beforeToDate:C0} by {compareDay} {prev:MMM} and {prevTotal:C0} in all of {prevName}.")">
+            <div class="pace-plot">
+                @for (var tick = 0m; tick <= top; tick += step)
+                {
+                    <div class="pace-tick" style="bottom: @F((double)(tick / top * 100))%"><span>@tick.ToString("C0")</span></div>
+                }
+                <svg viewBox="0 0 1000 300" preserveAspectRatio="none" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="pace-fill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0" stop-color="currentColor" stop-opacity=".14" />
+                            <stop offset="1" stop-color="currentColor" stop-opacity="0" />
+                        </linearGradient>
+                    </defs>
+                    <path class="pace-before" d="@Line(before)" />
+                    <path d="@Line(now) L@(F(X(today.Day))) 300 L0 300Z" fill="url(#pace-fill)" />
+                    <path class="pace-now" d="@Line(now)" />
+                </svg>
+                <span class="pace-dot" style="left: @F(X(today.Day) / 10)%; bottom: @F(100 - Y(toDate) / 3)%"></span>
+                @* Hover a day for its totals; each column is centred on its day. *@
+                <div class="pace-hits" style="--n: @(n - 1)" aria-hidden="true">
+                    @for (var d = 1; d <= n; d++)
+                    {
+                        <div class="pace-hit @(d > n / 2 ? "is-late" : null) @(d > today.Day ? "is-ahead" : null)" style="@(d <= today.Day ? $"--v: {F(100 - Y(now[d - 1]) / 3)}%" : null)">
+                            <div class="pace-tip">
+                                <strong>Day @d</strong>
+                                @if (d <= today.Day)
+                                {
+                                    <span><i class="key-now"></i>@first.AddDays(d - 1).ToString("d MMM") <b>@now[d - 1].ToString("C0")</b></span>
+                                }
+                                @if (d <= daysPrev)
+                                {
+                                    <span><i class="key-before"></i>@prev.AddDays(d - 1).ToString("d MMM") <b>@before[d - 1].ToString("C0")</b></span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="pace-x" aria-hidden="true">
+                @foreach (var d in new[] { 1, 8, 15, 22, daysThis })
+                {
+                    <span style="left: @F(X(d) / 10)%">@first.AddDays(d - 1).ToString("d MMM")</span>
+                }
+            </div>
+        </div>
+    }
 </section>
 
 <div class="grid-2">
     <section class="card-x">
         <div class="card-x-head">
             <div>
-                <h2>Spending pace</h2>
-                <p>Running total through the month</p>
+                <h2>Recent activity</h2>
+                <p>Select an expense to edit it</p>
             </div>
-            <div class="pace-key" aria-hidden="true">
-                <span><i class="key-now"></i>@thisName</span>
-                <span><i class="key-before"></i>@prevName</span>
-            </div>
+            <a asp-action="Expenses" class="btn btn-outline-secondary btn-sm">View all</a>
         </div>
-        @if (max == 0)
+        @if (Model.Recent.Count == 0)
         {
-            <p class="empty">Your running total appears here once you add expenses.</p>
+            <p class="empty">No expenses yet. Add your first one with <strong>New expense</strong>.</p>
         }
         else
         {
-            <div class="pace" role="img" aria-label="@($"{toDate:C0} spent by {today:d MMM}, against {beforeToDate:C0} by {compareDay} {prev:MMM} and {before[^1]:C0} in all of {prevName}.")">
-                <div class="pace-plot">
-                    @for (var tick = 0m; tick <= top; tick += step)
+            <div class="feed">
+                @foreach (var day in Model.Recent.GroupBy(e => e.Date))
+                {
+                    <h3 class="feed-day">@DayName(day.Key)</h3>
+                    @foreach (var e in day)
                     {
-                        <div class="pace-tick" style="bottom: @F((double)(tick / top * 100))%"><span>@tick.ToString("C0")</span></div>
+                        <button type="button" class="feed-item" data-expense data-id="@e.Id" data-title="@e.Title" data-price="@e.Price" data-category="@e.Category"
+                                data-date="@e.Date.ToString("yyyy-MM-dd")" data-paymentmode="@((int)e.PaymentMode)" data-description="@e.Description">
+                            <span class="feed-icon" style="--c: @(colorOf.GetValueOrDefault(e.Category, "var(--muted)"))" aria-hidden="true">@(e.Category[..1].ToUpperInvariant())</span>
+                            <span class="feed-text">
+                                <span class="feed-title"><span class="visually-hidden">Edit </span>@e.Title</span>
+                                <span class="feed-meta">@e.Category · @e.PaymentMode.DisplayName()</span>
+                            </span>
+                            <span class="feed-amount num">@e.Price?.ToString("C")</span>
+                            <svg class="i feed-edit" aria-hidden="true"><use href="#i-edit" /></svg>
+                        </button>
                     }
-                    <svg viewBox="0 0 1000 300" preserveAspectRatio="none" aria-hidden="true">
-                        <defs>
-                            <linearGradient id="pace-fill" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0" stop-color="currentColor" stop-opacity=".14" />
-                                <stop offset="1" stop-color="currentColor" stop-opacity="0" />
-                            </linearGradient>
-                        </defs>
-                        <path class="pace-before" d="@Line(before)" />
-                        <path d="@Line(now) L@(F(X(today.Day))) 300 L0 300Z" fill="url(#pace-fill)" />
-                        <path class="pace-now" d="@Line(now)" />
-                    </svg>
-                    <span class="pace-dot" style="left: @F(X(today.Day) / 10)%; bottom: @F(100 - Y(toDate) / 3)%"></span>
-                    @* Hover a day for its totals; each column is centred on its day. *@
-                    <div class="pace-hits" style="--n: @(n - 1)" aria-hidden="true">
-                        @for (var d = 1; d <= n; d++)
-                        {
-                            <div class="pace-hit @(d > n / 2 ? "is-late" : null) @(d > today.Day ? "is-ahead" : null)" style="@(d <= today.Day ? $"--v: {F(100 - Y(now[d - 1]) / 3)}%" : null)">
-                                <div class="pace-tip">
-                                    <strong>Day @d</strong>
-                                    @if (d <= today.Day)
-                                    {
-                                        <span><i class="key-now"></i>@first.AddDays(d - 1).ToString("d MMM") <b>@now[d - 1].ToString("C0")</b></span>
-                                    }
-                                    @if (d <= daysPrev)
-                                    {
-                                        <span><i class="key-before"></i>@prev.AddDays(d - 1).ToString("d MMM") <b>@before[d - 1].ToString("C0")</b></span>
-                                    }
-                                </div>
-                            </div>
-                        }
-                    </div>
-                </div>
-                <div class="pace-x" aria-hidden="true">
-                    @foreach (var d in new[] { 1, 8, 15, 22, daysThis })
-                    {
-                        <span style="left: @F(X(d) / 10)%">@first.AddDays(d - 1).ToString("d MMM")</span>
-                    }
-                </div>
+                }
             </div>
         }
     </section>
@@ -174,11 +278,12 @@
         }
         else
         {
-            <div class="split" aria-hidden="true">
-                @foreach (var (label, amount, color) in shown)
-                {
-                    <i style="flex: @amount.ToString(CultureInfo.InvariantCulture); background: @color"></i>
-                }
+            <div class="donut" aria-hidden="true">
+                <div class="donut-ring" style="background: conic-gradient(@donut)"></div>
+                <div class="donut-label">
+                    <strong class="num">@spent.ToString("C0")</strong>
+                    <span>@cats.Count @(cats.Count == 1 ? "category" : "categories")</span>
+                </div>
             </div>
             <ul class="cat-list">
                 @foreach (var (label, amount, color) in shown)
@@ -193,48 +298,6 @@
         }
     </section>
 </div>
-
-<section class="card-x">
-    <div class="card-x-head">
-        <div>
-            <h2>Recent expenses</h2>
-            <p>The latest you've added</p>
-        </div>
-        <a asp-action="Expenses" class="btn btn-outline-secondary btn-sm">View all</a>
-    </div>
-    @if (Model.Recent.Count == 0)
-    {
-        <p class="empty">No expenses yet. Add your first one with <strong>New expense</strong>.</p>
-    }
-    else
-    {
-        <div class="table-responsive">
-            <table class="table-x">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Expense</th>
-                        <th class="d-none d-sm-table-cell">Category</th>
-                        <th class="d-none d-md-table-cell">Payment</th>
-                        <th class="text-end">Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var e in Model.Recent)
-                    {
-                        <tr>
-                            <td class="text-nowrap muted">@e.Date.ToString("d MMM yyyy")</td>
-                            <td>@e.Title</td>
-                            <td class="d-none d-sm-table-cell"><span class="badge-x">@e.Category</span></td>
-                            <td class="d-none d-md-table-cell muted">@e.PaymentMode.DisplayName()</td>
-                            <td class="text-end num text-nowrap">@e.Price?.ToString("C")</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    }
-</section>
 
 <partial name="_ExpenseDialog" model="newExpense" />
 
