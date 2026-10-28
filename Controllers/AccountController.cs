@@ -27,10 +27,15 @@ public class AccountController(AppDbContext db, IConfiguration config) : Control
             return View(model);
         }
 
-        // The admin lives in config (user secrets locally, env vars in prod) as a password hash, never in the Users table.
+        // The admin lives in config (.env, user secrets, or Render env vars) as a password hash or plain password.
         if (IsAdminEmail(config, model.Email))
         {
-            if (Hasher.VerifyHashedPassword(new User(), config["Admin:PasswordHash"] ?? "", model.Password) == PasswordVerificationResult.Failed)
+            var hash = config["Admin:PasswordHash"];
+            var plain = config["Admin:Password"];
+            var valid = !string.IsNullOrEmpty(hash)
+                ? Hasher.VerifyHashedPassword(new User(), hash, model.Password) != PasswordVerificationResult.Failed
+                : !string.IsNullOrEmpty(plain) && model.Password == plain;
+            if (!valid)
             {
                 ModelState.AddModelError("", "Invalid email or password.");
                 return View(model);

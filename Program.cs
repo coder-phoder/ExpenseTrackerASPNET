@@ -1,16 +1,49 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ExpenseTracker.Data;
 
+// Load .env if present (maps __ to : automatically via ASP.NET Core environment variable configuration).
+if (File.Exists(".env"))
+{
+    foreach (var line in File.ReadAllLines(".env"))
+    {
+        var trimmed = line.Trim();
+        if (trimmed.Length == 0 || trimmed.StartsWith('#') || trimmed.IndexOf('=') is var eq && eq <= 0) continue;
+        var key = trimmed[..eq].Trim();
+        var val = trimmed[(eq + 1)..].Trim().Trim('"', '\'');
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(key)))
+        {
+            Environment.SetEnvironmentVariable(key, val);
+        }
+    }
+}
+
+// Convert a mysql://user:pass@host:port/db URI (e.g. from Aiven) into an ADO.NET connection string if needed.
+static string NormalizeConnectionString(string? raw)
+{
+    if (string.IsNullOrWhiteSpace(raw) || !raw.StartsWith("mysql://", StringComparison.OrdinalIgnoreCase))
+    {
+        return raw ?? "";
+    }
+    var uri = new Uri(raw);
+    var userInfo = uri.UserInfo.Split(':', 2);
+    var user = Uri.UnescapeDataString(userInfo[0]);
+    var pass = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+    var db = uri.AbsolutePath.Trim('/');
+    return $"Server={uri.Host};Port={uri.Port};Database={db};User={user};Password={pass};SslMode=Required;";
+}
+
 var builder = WebApplication.CreateBuilder(args);
+var connStr = NormalizeConnectionString(builder.Configuration.GetConnectionString("DefaultConnection"));
 
 // Add services to the container.
 builder.Services.AddControllersWithViews(options => options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(builder.Configuration.GetConnectionString("DefaultConnection"), new MySqlServerVersion(new Version(8, 0, 36))));
+    options.UseMySql(connStr, new MySqlServerVersion(new Version(8, 0, 36))));
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -22,13 +55,29 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddAuthorizationBuilder()
     .SetDefaultPolicy(new AuthorizationPolicyBuilder().RequireClaim(ClaimTypes.NameIdentifier).Build());
 
+// Trust Render / reverse-proxy X-Forwarded-Proto & X-Forwarded-For headers so HTTPS cookies and CSRF tokens work.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var app = builder.Build();
+
+// Auto-apply EF Core migrations on startup when a database connection string is configured.
+if (!string.IsNullOrWhiteSpace(connStr))
+{
+    using var scope = app.Services.CreateScope();
+    scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
+}
+
+app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/User/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 // Empty 4xx/5xx responses (unknown URLs, NotFound()) render the friendly error page.
@@ -47,6 +96,5 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=User}/{action=Index}/{id?}")
     .WithStaticAssets();
-
 
 app.Run();
