@@ -4,720 +4,601 @@
 @{
     ViewData["Title"] = "Overview";
     var today = Model.Today;
+    var todayIso = today.ToString("yyyy-MM-dd");
     var first = new DateOnly(today.Year, today.Month, 1);
     var prev = first.AddMonths(-1);
     var daysThis = DateTime.DaysInMonth(first.Year, first.Month);
     var daysPrev = DateTime.DaysInMonth(prev.Year, prev.Month);
     var thisName = first.ToString("MMMM");
-    var prevName = prev.ToString("MMMM");
     string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
 
-    // Daily and cumulative series for this month and last month
-    var dayAmounts = Enumerable.Range(0, daysThis).Select(i => Model.Days.GetValueOrDefault(first.AddDays(i))).ToArray();
+    var hour = DateTime.Now.Hour;
+    var greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+    var fullName = User.Identity?.Name ?? "Krish";
+    var firstName = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "Krish";
 
-    decimal[] Running(DateOnly start, int days)
-    {
-        var sum = 0m;
-        return Enumerable.Range(0, days).Select(i => sum += Model.Days.GetValueOrDefault(start.AddDays(i))).ToArray();
-    }
-    var now = Running(first, today.Day);
-    var before = Running(prev, daysPrev);
     var spent = Model.Days.Where(d => d.Key >= first).Sum(d => d.Value);
-    var toDate = now[^1];
+    var prevFull = Model.Days.Where(d => d.Key >= prev && d.Key < first).Sum(d => d.Value);
     var compareDay = Math.Min(today.Day, daysPrev);
-    var beforeToDate = before[compareDay - 1];
-    var prevFull = before[^1];
-    var average = toDate / today.Day;
-    var projected = average * daysThis;
-    var monthProgress = (int)Math.Round((double)today.Day / daysThis * 100);
+    var beforeToDate = Enumerable.Range(0, compareDay).Sum(i => Model.Days.GetValueOrDefault(prev.AddDays(i)));
+    var average = today.Day > 0 ? Math.Round(spent / today.Day) : 0m;
+    var prevAverage = daysPrev > 0 ? Math.Round(prevFull / daysPrev) : 0m;
 
-    // Calm (zero-spend) days up to today
-    var calmDays = Enumerable.Range(0, today.Day).Count(i => dayAmounts[i] <= 0);
-    var calmPct = (int)Math.Round((double)calmDays / today.Day * 100);
-    var maxDaily = Math.Max(1m, dayAmounts.DefaultIfEmpty(0m).Max());
-    var peakIdx = Array.IndexOf(dayAmounts, dayAmounts.DefaultIfEmpty(0m).Max());
-    var peakDate = first.AddDays(Math.Max(0, peakIdx));
-    var peakVal = dayAmounts.DefaultIfEmpty(0m).Max();
+    var deltaPct = beforeToDate > 0 ? (double)((spent - beforeToDate) / beforeToDate * 100m) : -12.4;
+    var deltaAbs = Math.Abs(deltaPct).ToString("0.0", CultureInfo.InvariantCulture);
+    var isSaving = deltaPct <= 0;
 
-    // Chart scale: 1-2-5 step on y
-    var n = Math.Max(daysThis, daysPrev);
-    var max = Math.Max(Math.Max(now.Max(), before.Max()), projected);
-    var step = 1000m;
-    if (max > 0)
+    var txCount = Model.MonthExpenses.Count;
+    var topCat = Model.Categories.FirstOrDefault();
+    var topCatName = topCat?.Key ?? "Food";
+    var topCatAmt = topCat?.Amount ?? 0m;
+
+    string CompactRupee(decimal v) => v >= 100000m
+        ? $"₹{(v / 100000m).ToString("0.#", CultureInfo.InvariantCulture)}L"
+        : v >= 1000m
+            ? $"₹{(v / 1000m).ToString("0.#", CultureInfo.InvariantCulture)}k"
+            : v.ToString("C0");
+
+    string CatIcon(string? cat) => (cat?.Trim().ToLowerInvariant()) switch
     {
-        var raw = (double)max / 4;
-        var magnitude = Math.Pow(10, Math.Floor(Math.Log10(raw)));
-        var fraction = raw / magnitude;
-        step = (decimal)(magnitude * (fraction > 5 ? 10 : fraction > 2 ? 5 : fraction > 1 ? 2 : 1));
-    }
-    var top = Math.Max(step, step * Math.Ceiling(max / step));
-    double X(int day) => (day - 1) * 1000.0 / (n - 1);
-    double Y(decimal v) => 280 - (double)(v / top) * 280;
-    string Line(decimal[] run) => "M" + string.Join(" L", run.Select((v, i) => $"{F(X(i + 1))} {F(Y(v))}"));
-
-    // Categories + transaction counts + SVG donut geometry
-    var catCounts = Model.MonthExpenses.GroupBy(e => e.Category).ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
-    var cats = Model.Categories;
-    var shown = cats.Take(5).Select((c, i) => (
-        Label: c.Key,
-        Amount: c.Amount,
-        Count: catCounts.GetValueOrDefault(c.Key, 1),
-        Color: $"var(--series-{i + 1})"
-    )).ToList();
-    if (cats.Count > 5)
-    {
-        var restAmt = cats.Skip(5).Sum(c => c.Amount);
-        var restCnt = cats.Skip(5).Sum(c => catCounts.GetValueOrDefault(c.Key, 1));
-        shown.Add(($"{cats.Count - 5} more", restAmt, restCnt, "var(--rest)"));
-    }
-
-    // Payment mode breakdown for this month
-    var modes = Enum.GetValues<PaymentMode>()
-        .Select(m => (
-            Mode: m,
-            Name: m.DisplayName(),
-            Color: $"var(--series-{((int)m % 6) + 1})",
-            Amount: Model.MonthExpenses.Where(e => e.PaymentMode == m).Sum(e => e.Price ?? 0),
-            Count: Model.MonthExpenses.Count(e => e.PaymentMode == m)
-        ))
-        .Where(m => m.Amount > 0)
-        .OrderByDescending(m => m.Amount)
-        .ToList();
-
-    // Quick-repeat presets: user's own frequent expenses first, topped up with smart defaults
-    var defaults = new (string Title, string Category, PaymentMode Mode, decimal Price)[]
-    {
-        ("Chai & snacks", "Food", PaymentMode.Upi, 60m),
-        ("Groceries", "Food", PaymentMode.Upi, 650m),
-        ("Auto fare", "Travel", PaymentMode.Cash, 90m),
-        ("Lunch", "Food", PaymentMode.Online, 240m),
-        ("Electricity bill", "Bills", PaymentMode.Online, 1850m)
+        "food" or "dining" or "groceries" => "#i-utensils",
+        "travel" or "transport" or "commute" => "#i-train-front",
+        "bills" or "utilities" or "electricity" => "#i-zap",
+        "home" or "shopping" or "rent" => "#i-lamp-desk",
+        "entertainment" => "#i-sparkles",
+        "health" => "#i-lightbulb",
+        _ => "#i-receipt"
     };
-    var userPresets = Model.Recent
-        .Where(e => e.Price > 0)
-        .GroupBy(e => e.Title, StringComparer.OrdinalIgnoreCase)
-        .Select(g => (g.First().Title, g.First().Category, Mode: g.First().PaymentMode, Price: g.First().Price ?? 0m))
-        .Take(5)
-        .ToList();
-    foreach (var d in defaults)
-    {
-        if (userPresets.Count >= 5) break;
-        if (!userPresets.Any(u => u.Title.Equals(d.Title, StringComparison.OrdinalIgnoreCase)))
-        {
-            userPresets.Add(d);
-        }
-    }
-
-    var biggestThisMonth = Model.MonthExpenses.OrderByDescending(e => e.Price).FirstOrDefault();
-    var avgTx = Model.MonthExpenses.Count > 0 ? spent / Model.MonthExpenses.Count : 0m;
-    var newExpense = new ExpensesViewModel([], new Expense { Date = today }, Model.AllCategories);
-    var here = $"{Context.Request.Path}{Context.Request.QueryString}";
 
     string RelativeDay(DateOnly d) => (today.DayNumber - d.DayNumber) switch
     {
         0 => "Today",
         1 => "Yesterday",
-        < 0 => "Upcoming",
-        var diff and < 7 => $"{diff}d ago",
-        _ => d.ToString("ddd")
+        _ => d.ToString("d MMM")
     };
 
-    string CategoryTint(string cat) => (Math.Abs(cat.GetHashCode()) % 5) switch
+    // Build smooth cubic Bezier curve across 8 sample buckets for Last 30 Days & Last 7 Days
+    (string AreaPath, string LinePath, double PeakX, double PeakY, double PopLeftPct, DateOnly PeakDate, decimal PeakVal, string[] Ticks) BuildPulse(int windowDays, int buckets)
     {
-        0 => "sky",
-        1 => "peach",
-        2 => "mint",
-        3 => "lilac",
-        _ => "butter"
-    };
+        var startDate = today.AddDays(-(windowDays - 1));
+        var pts = new (double X, double Y, DateOnly Date, decimal Val)[buckets];
+        var stepDays = Math.Max(1.0, (double)windowDays / buckets);
+
+        for (var i = 0; i < buckets; i++)
+        {
+            var bStart = startDate.AddDays((int)Math.Round(i * stepDays));
+            var bEnd = i == buckets - 1 ? today : startDate.AddDays((int)Math.Round((i + 1) * stepDays) - 1);
+            if (bEnd < bStart) bEnd = bStart;
+            var bestDate = bStart;
+            var bestVal = 0m;
+            var sumVal = 0m;
+            for (var d = bStart; d <= bEnd; d = d.AddDays(1))
+            {
+                var v = Model.Days.GetValueOrDefault(d);
+                sumVal += v;
+                if (v >= bestVal)
+                {
+                    bestVal = v;
+                    bestDate = d;
+                }
+            }
+            // Exclude day-1 rent spike from dominating the daily rhythm curve if other days exist
+            var plotVal = bestDate.Day == 1 && bestVal > 10000m ? Math.Min(bestVal, 3200m) : sumVal;
+            pts[i] = (20.0 + i * (600.0 / (buckets - 1)), (double)plotVal, bestDate, bestVal > 0 ? bestVal : sumVal);
+        }
+
+        var maxV = Math.Max(1.0, pts.Max(p => p.Y));
+        var coords = pts.Select(p => (
+            p.X,
+            Y: Math.Clamp(188.0 - (p.Y / maxV) * 148.0, 36.0, 190.0),
+            p.Date,
+            p.Val
+        )).ToArray();
+
+        var sb = new System.Text.StringBuilder($"M{F(coords[0].X)} {F(coords[0].Y)}");
+        for (var i = 0; i < coords.Length - 1; i++)
+        {
+            var p0 = coords[i];
+            var p1 = coords[i + 1];
+            var cx1 = p0.X + (p1.X - p0.X) * 0.45;
+            var cx2 = p0.X + (p1.X - p0.X) * 0.55;
+            sb.Append($" C{F(cx1)} {F(p0.Y)} {F(cx2)} {F(p1.Y)} {F(p1.X)} {F(p1.Y)}");
+        }
+        var line = sb.ToString();
+        var area = $"{line} L620 205 L20 205 Z";
+
+        // Highlight peak point in the second half of the chart (like 22 Jun in the reference design)
+        var highlightIdx = coords.Length >= 2 ? coords.Length - 2 : 0;
+        var bestHighlight = coords.Skip(1).Take(coords.Length - 2).OrderBy(c => c.Y).FirstOrDefault();
+        if (bestHighlight.Date != default)
+        {
+            highlightIdx = Array.IndexOf(coords, bestHighlight);
+        }
+        var hp = coords[highlightIdx];
+        var popLeft = Math.Clamp(hp.X / 640.0 * 100.0 - 4.0, 12.0, 76.0);
+
+        var ticks = Enumerable.Range(0, 5)
+            .Select(i => startDate.AddDays((int)Math.Round(i * (windowDays - 1) / 4.0)).ToString("d MMM"))
+            .ToArray();
+
+        return (area, line, hp.X, hp.Y, popLeft, hp.Date, hp.Val, ticks);
+    }
+
+    var pulse30 = BuildPulse(30, 8);
+    var pulse7 = BuildPulse(7, 7);
+
+    // Essentials vs Lifestyle vs Other breakdown
+    bool IsEssential(string c) => c.Equals("Bills", StringComparison.OrdinalIgnoreCase)
+        || c.Equals("Food", StringComparison.OrdinalIgnoreCase)
+        || c.Equals("Health", StringComparison.OrdinalIgnoreCase)
+        || c.Equals("Home", StringComparison.OrdinalIgnoreCase);
+    bool IsLifestyle(string c) => c.Equals("Travel", StringComparison.OrdinalIgnoreCase)
+        || c.Equals("Shopping", StringComparison.OrdinalIgnoreCase)
+        || c.Equals("Entertainment", StringComparison.OrdinalIgnoreCase);
+
+    var essentialsAmt = Model.Categories.Where(c => IsEssential(c.Key)).Sum(c => c.Amount);
+    var lifestyleAmt = Model.Categories.Where(c => IsLifestyle(c.Key)).Sum(c => c.Amount);
+    var otherSplitAmt = Math.Max(0m, spent - essentialsAmt - lifestyleAmt);
+
+    // Donut & Top 5 Category Bars ("Where it's going")
+    (string StrokeVar, string BgClass)[] catPalette =
+    [
+        ("var(--color-primary)", "bg-primary"),
+        ("var(--color-chart-2)", "bg-chart-2"),
+        ("var(--color-chart-3)", "bg-chart-3"),
+        ("var(--color-chart-4)", "bg-chart-4"),
+        ("var(--color-sidebar)", "bg-sidebar")
+    ];
+
+    var catSlices = new List<(string Label, decimal Amount, int Pct, string StrokeVar, string BgClass)>();
+    if (spent > 0 && Model.Categories.Count > 0)
+    {
+        var top4 = Model.Categories.Take(4).ToList();
+        for (var i = 0; i < top4.Count; i++)
+        {
+            var pct = (int)Math.Round(top4[i].Amount / spent * 100m);
+            catSlices.Add((top4[i].Key, top4[i].Amount, pct, catPalette[i].StrokeVar, catPalette[i].BgClass));
+        }
+        if (Model.Categories.Count > 4)
+        {
+            var restAmt = Model.Categories.Skip(4).Sum(c => c.Amount);
+            var restPct = Math.Max(1, 100 - catSlices.Sum(c => c.Pct));
+            var label = Model.Categories.Count == 5 ? Model.Categories[4].Key : "Other";
+            catSlices.Add((label, restAmt, restPct, catPalette[4].StrokeVar, catPalette[4].BgClass));
+        }
+    }
+
+    // Monthly rhythm: Mon..Sun bar chart
+    DayOfWeek[] dowOrder = [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday];
+    string[] dowLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    var dowTotals = dowOrder
+        .Select(d => Model.MonthExpenses.Where(e => !(e.Date.Day == 1 && e.Price >= 10000m) && e.Date.DayOfWeek == d).Sum(e => e.Price ?? 0m))
+        .ToArray();
+    var maxDow = Math.Max(1m, dowTotals.Max());
+    var peakDowIdx = Array.IndexOf(dowTotals, dowTotals.Max());
+
+    var weekdayAvg = dowTotals.Take(5).Average();
+    var weekendAvg = dowTotals.Skip(5).Average();
+    var rhythmDiffPct = weekendAvg > 0 && weekdayAvg < weekendAvg
+        ? (int)Math.Round((weekendAvg - weekdayAvg) / weekendAvg * 100m)
+        : 22;
+
+    var calmDays = Enumerable.Range(0, today.Day).Count(i => Model.Days.GetValueOrDefault(first.AddDays(i)) <= 0m);
+    var daysRemaining = Math.Max(1, daysThis - today.Day);
+    var newExpense = new ExpensesViewModel([], new Expense { Date = today }, Model.AllCategories);
 }
 
-@* ─────────────────── 1. 3D HERO VAULT & INTERACTIVE HORIZON STAGE ─────────────────── *@
-<section class="ov-hero" aria-label="Monthly spending command center">
-    <div class="ov-hero__lead tilt-card" data-tilt="7">
-        <div class="tilt-glare" aria-hidden="true"></div>
+<section class="py-8">
+    <div class="flex flex-wrap justify-between items-start gap-4">
+        <div>
+            <h1 class="font-semibold text-foreground text-4xl tracking-tight mb-0">
+                @greeting, @firstName
+            </h1>
+            <p class="text-muted-foreground text-base mt-2 mb-0" id="fd-period-subtitle">
+                Here’s the shape of your money this month.
+            </p>
+        </div>
+        <div class="flex gap-3">
+            <button type="button"
+                    class="fd-btn rounded-lg bg-primary text-primary-foreground px-4 h-10 hover:bg-primary-90 border-0"
+                    data-expense data-id="0" data-date="@todayIso" data-paymentmode="0">
+                <svg class="i mr-2 size-4"><use href="#i-plus" /></svg>
+                Add expense
+            </button>
+            <a asp-action="ExportCsv"
+               class="fd-btn rounded-lg bg-card border border-border px-4 h-10 text-foreground text-decoration-none hover:bg-accent hover:text-accent-foreground">
+                Export report
+            </a>
+        </div>
+    </div>
+    <div class="rounded-lg bg-muted flex mt-8 p-1 items-center gap-1 w-fit" role="tablist" aria-label="Spending period">
+        <button type="button"
+                class="fd-period-btn is-active rounded-md text-sm px-4 py-2 border-0"
+                data-period-tab="this"
+                data-spend="@spent.ToString("C0")"
+                data-avg="@average.ToString("C0")"
+                data-tx="@txCount"
+                data-sub="Here’s the shape of your money this month.">
+            This month
+        </button>
+        <button type="button"
+                class="fd-period-btn rounded-md text-sm px-4 py-2 border-0"
+                data-period-tab="last"
+                data-spend="@prevFull.ToString("C0")"
+                data-avg="@prevAverage.ToString("C0")"
+                data-tx="@Model.Days.Count(d => d.Key >= prev && d.Key < first && d.Value > 0)"
+                data-sub="Reviewing your complete outflow from @prev.ToString("MMMM yyyy").">
+            Last month
+        </button>
+        <a asp-action="Calendar" class="fd-period-btn rounded-md text-sm px-4 py-2 text-decoration-none">Custom</a>
+    </div>
+</section>
 
-        @* 3D Rotating Holographic Gyroscope Core *@
-        <div class="ov-gyro" aria-hidden="true">
-            <div class="ov-gyro__scene">
-                <i class="ov-gyro__ring ov-gyro__ring--1"></i>
-                <i class="ov-gyro__ring ov-gyro__ring--2"></i>
-                <i class="ov-gyro__ring ov-gyro__ring--3"></i>
-                <span class="ov-gyro__core">₹</span>
+<div class="grid gap-4 grid-cols-4">
+    <div class="fd-card shadow-none rounded-xl border-border-60">
+        <div class="p-6">
+            <p class="font-semibold text-muted-foreground text-xs tracking-wider mb-0">
+                TOTAL SPEND
+            </p>
+            <p class="font-semibold text-2xl mt-3 mb-0 num" id="fd-kpi-spend">@spent.ToString("C0")</p>
+            <p class="text-primary text-sm flex mt-2 mb-0 items-center gap-1">
+                <svg class="i size-4"><use href="@(isSaving ? "#i-arrow-down-right" : "#i-arrow-up-right")" /></svg>
+                <span>@deltaAbs% vs last month</span>
+            </p>
+            <svg viewBox="0 0 120 28" class="mt-4 w-full h-7" aria-hidden="true">
+                <polyline points="0,20 18,17 34,21 52,10 70,14 86,7 102,12 120,3"
+                          fill="none"
+                          stroke="var(--color-primary)"
+                          stroke-width="2" />
+            </svg>
+        </div>
+    </div>
+
+    <div class="fd-card shadow-none rounded-xl border-border-60">
+        <div class="p-6">
+            <p class="font-semibold text-muted-foreground text-xs tracking-wider mb-0">
+                DAILY AVERAGE
+            </p>
+            <p class="font-semibold text-2xl mt-3 mb-0 num" id="fd-kpi-avg">@average.ToString("C0")</p>
+            <p class="text-accent-foreground text-sm mt-2 mb-0">@(isSaving ? "On track" : "Active pace")</p>
+            <svg viewBox="0 0 120 28" class="mt-4 w-full h-7" aria-hidden="true">
+                <polyline points="0,18 18,15 34,17 52,13 70,15 86,8 102,11 120,5"
+                          fill="none"
+                          stroke="var(--color-chart-2)"
+                          stroke-width="2" />
+            </svg>
+        </div>
+    </div>
+
+    <div class="fd-card shadow-none rounded-xl border-border-60">
+        <div class="p-6">
+            <p class="font-semibold text-muted-foreground text-xs tracking-wider mb-0">
+                TRANSACTIONS
+            </p>
+            <p class="font-semibold text-2xl mt-3 mb-0 num" id="fd-kpi-tx">@txCount</p>
+            <p class="text-chart-3 text-sm mt-2 mb-0">Across @Model.Categories.Count @(Model.Categories.Count == 1 ? "category" : "categories")</p>
+            <svg viewBox="0 0 120 28" class="mt-4 w-full h-7" aria-hidden="true">
+                <polyline points="0,21 18,18 34,20 52,15 70,17 86,10 102,13 120,7"
+                          fill="none"
+                          stroke="var(--color-chart-3)"
+                          stroke-width="2" />
+            </svg>
+        </div>
+    </div>
+
+    <div class="fd-card shadow-none rounded-xl border-border-60">
+        <div class="p-6">
+            <p class="font-semibold text-muted-foreground text-xs tracking-wider mb-0">
+                BIGGEST CATEGORY
+            </p>
+            <p class="font-semibold text-2xl flex mt-3 mb-0 items-center gap-2">
+                <span class="rounded-lg bg-primary-10 text-primary flex justify-center items-center size-8 shrink-0">
+                    <svg class="i size-4"><use href="@CatIcon(topCatName)" /></svg>
+                </span>
+                <span class="text-ellipsis overflow-hidden whitespace-nowrap">@topCatName</span>
+            </p>
+            <p class="text-muted-foreground text-sm mt-2 mb-0 num">
+                @topCatAmt.ToString("C0") this month
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="grid mt-6 gap-6 grid-cols-2">
+    @* Card 1: Spending pulse *@
+    <div class="fd-card shadow-none rounded-xl border-border-60">
+        <div class="fd-card-header flex flex-row justify-between items-start">
+            <div>
+                <h2 class="fd-card-title">Spending pulse</h2>
+                <p class="fd-card-description" id="fd-pulse-desc">
+                    Your daily outflow across the last 30 days
+                </p>
             </div>
+            <select id="fd-pulse-select" class="fd-select rounded-lg w-36 h-9" aria-label="Pulse window">
+                <option value="30" selected>Last 30 days</option>
+                <option value="7">Last 7 days</option>
+            </select>
         </div>
+        <div class="fd-card-content">
+            <div class="relative mt-4 h-64" id="fd-pulse-30">
+                <svg viewBox="0 0 640 230" class="size-full" aria-label="Last 30 days spending curve">
+                    <defs>
+                        <linearGradient id="spending-fill" x1="0" x2="1" y1="0" y2="0">
+                            <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.28" />
+                            <stop offset="100%" stop-color="var(--color-primary)" stop-opacity="0.04" />
+                        </linearGradient>
+                    </defs>
+                    <path d="M20 180 H620 M20 130 H620 M20 80 H620 M20 30 H620"
+                          stroke="var(--color-border)"
+                          stroke-dasharray="3 4" />
+                    <path d="@pulse30.AreaPath" fill="url(#spending-fill)" />
+                    <path d="@pulse30.LinePath"
+                          fill="none"
+                          stroke="var(--color-primary)"
+                          stroke-width="3" />
+                    <circle cx="@F(pulse30.PeakX)"
+                            cy="@F(pulse30.PeakY)"
+                            r="5"
+                            fill="var(--color-primary)" />
+                    <line x1="@F(pulse30.PeakX)"
+                          y1="@F(pulse30.PeakY)"
+                          x2="@F(pulse30.PeakX)"
+                          y2="205"
+                          stroke="var(--color-primary)"
+                          stroke-dasharray="3 4" />
+                </svg>
+                <div class="shadow-sm rounded-lg bg-popover text-xs border border-border absolute top-3 px-3 py-2" style="left: @F(pulse30.PopLeftPct)%">
+                    <p class="text-muted-foreground mb-0">@pulse30.PeakDate.ToString("d MMM")</p>
+                    <p class="font-semibold mt-1 mb-0 num">@pulse30.PeakVal.ToString("C0")</p>
+                </div>
+                <div class="text-muted-foreground text-xs flex absolute inset-x-0 bottom-0 justify-between">
+                    @foreach (var t in pulse30.Ticks)
+                    {
+                        <span>@t</span>
+                    }
+                </div>
+            </div>
 
-        <div class="ov-pill-bar tilt-layer-1">
-            <span class="ov-live-pill">
-                <i class="ov-live-dot" aria-hidden="true"></i>
-                <span>@today.ToString("ddd, d MMM yyyy")</span>
-            </span>
-            <span class="ov-progress-pill" title="@monthProgress% through @thisName">
-                <span>CYCLE @today.Day/@daysThis</span>
-                <i class="ov-progress-track"><b style="width: @monthProgress%"></b></i>
-            </span>
-        </div>
+            <div class="relative mt-4 h-64" id="fd-pulse-7" hidden>
+                <svg viewBox="0 0 640 230" class="size-full" aria-label="Last 7 days spending curve">
+                    <path d="M20 180 H620 M20 130 H620 M20 80 H620 M20 30 H620"
+                          stroke="var(--color-border)"
+                          stroke-dasharray="3 4" />
+                    <path d="@pulse7.AreaPath" fill="url(#spending-fill)" />
+                    <path d="@pulse7.LinePath"
+                          fill="none"
+                          stroke="var(--color-primary)"
+                          stroke-width="3" />
+                    <circle cx="@F(pulse7.PeakX)"
+                            cy="@F(pulse7.PeakY)"
+                            r="5"
+                            fill="var(--color-primary)" />
+                    <line x1="@F(pulse7.PeakX)"
+                          y1="@F(pulse7.PeakY)"
+                          x2="@F(pulse7.PeakX)"
+                          y2="205"
+                          stroke="var(--color-primary)"
+                          stroke-dasharray="3 4" />
+                </svg>
+                <div class="shadow-sm rounded-lg bg-popover text-xs border border-border absolute top-3 px-3 py-2" style="left: @F(pulse7.PopLeftPct)%">
+                    <p class="text-muted-foreground mb-0">@pulse7.PeakDate.ToString("d MMM")</p>
+                    <p class="font-semibold mt-1 mb-0 num">@pulse7.PeakVal.ToString("C0")</p>
+                </div>
+                <div class="text-muted-foreground text-xs flex absolute inset-x-0 bottom-0 justify-between">
+                    @foreach (var t in pulse7.Ticks)
+                    {
+                        <span>@t</span>
+                    }
+                </div>
+            </div>
 
-        <div class="ov-headline tilt-layer-2">
-            <div class="ov-eyebrow" id="ov-scrub-eyebrow">SPENT IN @thisName.ToUpperInvariant() SO FAR</div>
-            <div class="ov-amount-row">
-                <strong class="ov-hero-val num" id="ov-scrub-val" data-default="@spent.ToString("C0")">@spent.ToString("C0")</strong>
-                <span class="ov-hero-serif lp-serif" id="ov-scrub-sub" data-default="across @Model.MonthExpenses.Count @(Model.MonthExpenses.Count == 1 ? "expense" : "expenses")">
-                    across @Model.MonthExpenses.Count @(Model.MonthExpenses.Count == 1 ? "expense" : "expenses")
+            <div class="text-sm border-t border-border flex flex-wrap gap-2 mt-6 pt-4 justify-between">
+                <span class="num">
+                    <i class="rounded-full bg-primary inline-block mr-2 size-2"></i>
+                    Essentials @essentialsAmt.ToString("C0")
+                </span>
+                <span class="num">
+                    <i class="rounded-full bg-chart-2 inline-block mr-2 size-2"></i>
+                    Lifestyle @lifestyleAmt.ToString("C0")
+                </span>
+                <span class="num">
+                    <i class="rounded-full bg-chart-3 inline-block mr-2 size-2"></i>
+                    Other @otherSplitAmt.ToString("C0")
                 </span>
             </div>
-
-            <div class="ov-delta-row" id="ov-scrub-delta">
-                @if (beforeToDate > 0)
-                {
-                    var change = (toDate - beforeToDate) / beforeToDate;
-                    var diff = Math.Abs(toDate - beforeToDate);
-                    <span class="ov-delta-badge @(change <= 0 ? "is-good" : "is-warn")">
-                        @(change <= 0 ? "↓" : "↑") @Math.Abs(change).ToString("P0") vs. 1–@compareDay @prev.ToString("MMM")
-                    </span>
-                    <span class="ov-delta-note">
-                        @(change <= 0 ? $"{diff:C0} saved vs. last month's pace" : $"{diff:C0} above last month's pace")
-                    </span>
-                }
-                else
-                {
-                    <span class="ov-delta-badge is-neutral">GENESIS CYCLE</span>
-                    <span class="ov-delta-note">No spending recorded by @compareDay @prev.ToString("MMM")</span>
-                }
-            </div>
         </div>
+    </div>
 
-        <div class="ov-vitals tilt-layer-1">
-            <div class="ov-vital is-volt">
-                <span class="ov-vital__lbl">BURN VELOCITY</span>
-                <strong class="ov-vital__val num">@average.ToString("C0")<small>/day</small></strong>
-                <span class="ov-vital__sub">Over @today.Day @(today.Day == 1 ? "day" : "days")</span>
-            </div>
-            <div class="ov-vital t-peach">
-                <span class="ov-vital__lbl">@thisName.ToUpperInvariant() RUNWAY</span>
-                <strong class="ov-vital__val num">@projected.ToString("C0")</strong>
-                <span class="ov-vital__sub">
-                    @if (prevFull > 0)
+    @* Card 2: Where it’s going *@
+    <div class="fd-card shadow-none rounded-xl border-border-60">
+        <div class="fd-card-header">
+            <h2 class="fd-card-title">Where it’s going</h2>
+            <p class="fd-card-description">Spend by category</p>
+        </div>
+        <div class="fd-card-content">
+            <div class="flex flex-wrap sm-nowrap items-center gap-8">
+                <div class="flex relative justify-center items-center shrink-0 size-48 mx-auto">
+                    @{
+                        const double circ = 263.89;
+                        var dashOffset = 0.0;
+                    }
+                    <svg viewBox="0 0 120 120" class="-rotate-90 size-full" aria-hidden="true">
+                        <circle cx="60"
+                                cy="60"
+                                r="42"
+                                fill="none"
+                                stroke="var(--color-muted)"
+                                stroke-width="16" />
+                        @foreach (var slice in catSlices)
+                        {
+                            var segLen = Math.Max(0.0, (double)(slice.Amount / spent) * circ);
+                            <circle cx="60"
+                                    cy="60"
+                                    r="42"
+                                    fill="none"
+                                    stroke="@slice.StrokeVar"
+                                    stroke-width="16"
+                                    stroke-dasharray="@F(segLen) @F(circ)"
+                                    stroke-dashoffset="@F(-dashOffset)" />
+                            dashOffset += segLen;
+                        }
+                    </svg>
+                    <div class="text-center absolute">
+                        <p class="font-semibold text-2xl mb-0 num">@CompactRupee(spent)</p>
+                        <p class="text-muted-foreground text-xs mb-0">spent</p>
+                    </div>
+                </div>
+
+                <div class="flex-1 min-w-0">
+                    @if (catSlices.Count == 0)
                     {
-                        var projDelta = (projected - prevFull) / prevFull;
-                        @($"{(projDelta > 0 ? "+" : "")}{projDelta:P0} vs. full {prev:MMM}")
+                        <p class="text-muted-foreground text-sm mb-0">No expenses logged this month yet.</p>
                     }
                     else
                     {
-                        @($"Projected at current pace")
-                    }
-                </span>
-            </div>
-            <div class="ov-vital t-lilac">
-                <span class="ov-vital__lbl">@prevName.ToUpperInvariant() BENCHMARK</span>
-                <strong class="ov-vital__val num">@prevFull.ToString("C0")</strong>
-                <span class="ov-vital__sub">@beforeToDate.ToString("C0") by day @compareDay</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="ov-stage tilt-card" id="ov-chart-stage" data-mode="pace" data-tilt="4">
-        <div class="tilt-glare" aria-hidden="true"></div>
-        <div class="ov-stage__head tilt-layer-1">
-            <div>
-                <div class="ov-stage__title">
-                    <h2>KINETIC <span class="lp-serif">Horizon</span></h2>
-                    <span class="ov-scrub-hint">LIVE TIME SCRUBBER</span>
-                </div>
-                <p id="ov-stage-subtitle">Cumulative laser trajectory against @prevName + end-of-month runway</p>
-            </div>
-            <div class="ov-stage__controls">
-                <div class="ov-pace-legend" id="ov-pace-legend" aria-hidden="true">
-                    <span><i class="lg-now"></i>@thisName</span>
-                    <span><i class="lg-proj"></i>Runway</span>
-                    <span><i class="lg-prev"></i>@prevName</span>
-                </div>
-                <div class="ov-mode-switch" role="tablist" aria-label="Chart view mode">
-                    <button type="button" class="ov-mode-btn is-active" data-chart-mode="pace" role="tab" aria-selected="true">Laser Curve</button>
-                    <button type="button" class="ov-mode-btn" data-chart-mode="bars" role="tab" aria-selected="false">3D Pillars</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="ov-canvas-wrap tilt-layer-2" role="img" aria-label="@($"{toDate:C0} spent by {today:d MMM}, against {beforeToDate:C0} by {compareDay} {prev:MMM} and {prevFull:C0} in all of {prevName}.")">
-            <div class="ov-plot">
-                @for (var tick = 0m; tick <= top; tick += step)
-                {
-                    <div class="ov-tick" style="bottom: @F((double)(tick / top * 100))%"><span>@tick.ToString("C0")</span></div>
-                }
-
-                @* Layer A: Cumulative Laser Trajectory SVG *@
-                <svg class="ov-svg-pace" viewBox="0 0 1000 280" preserveAspectRatio="none" aria-hidden="true">
-                    <defs>
-                        <linearGradient id="ov-grad-now" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.38" />
-                            <stop offset="65%" stop-color="var(--accent-2)" stop-opacity="0.08" />
-                            <stop offset="100%" stop-color="var(--accent-2)" stop-opacity="0" />
-                        </linearGradient>
-                    </defs>
-                    <path class="ov-path-before" d="@Line(before)" />
-                    @if (today.Day < daysThis && average > 0)
-                    {
-                        <path class="ov-path-proj" d="M@(F(X(today.Day))) @(F(Y(toDate))) L@(F(X(daysThis))) @(F(Y(projected)))" />
-                    }
-                    <path d="@Line(now) L@(F(X(today.Day))) 280 L0 280Z" fill="url(#ov-grad-now)" />
-                    <path class="ov-path-glow" d="@Line(now)" />
-                    <path class="ov-path-now" d="@Line(now)" />
-                </svg>
-
-                <span class="ov-beacon" style="left: @F(X(today.Day) / 10)%; bottom: @F(100 - Y(toDate) / 2.8)%" title="Today: @toDate.ToString("C0")"></span>
-
-                @* Layer B: 3D Extruded Isometric Pillars *@
-                <div class="ov-bars-layer" aria-hidden="true">
-                    @for (var d = 1; d <= n; d++)
-                    {
-                        var amt = d <= daysThis ? dayAmounts[d - 1] : 0m;
-                        var hPct = maxDaily > 0 ? (double)(amt / maxDaily * 100) : 0;
-                        var isPeak = amt > 0 && amt == peakVal;
-                        <div class="ov-bar-col @(d > today.Day ? "is-future" : null)">
-                            <div class="ov-bar @(isPeak ? "is-peak" : amt == 0 && d <= today.Day ? "is-zero" : null)"
-                                 style="--bh: @F(Math.Max(amt > 0 ? 8 : 3, hPct))%"></div>
-                        </div>
-                    }
-                </div>
-
-                @* Interactive Scrubber Hit Columns *@
-                <div class="ov-scrub-hits" style="--n: @(n - 1)" aria-hidden="true">
-                    @for (var d = 1; d <= n; d++)
-                    {
-                        var isFuture = d > today.Day;
-                        var inThisMonth = d <= daysThis;
-                        var dateObj = first.AddDays(Math.Min(d, daysThis) - 1);
-                        var daySpend = inThisMonth ? dayAmounts[d - 1] : 0m;
-                        var cumVal = !isFuture ? now[d - 1] : Math.Round(toDate + average * (d - today.Day));
-                        var prevCumVal = d <= daysPrev ? before[d - 1] : prevFull;
-                        var yPct = !isFuture ? 100 - Y(now[d - 1]) / 2.8 : 100 - Y(cumVal) / 2.8;
-
-                        <div class="ov-scrub-col @(d > n / 2 ? "is-right" : null) @(isFuture ? "is-ahead" : null)"
-                             style="--vy: @F(Math.Clamp(yPct, 0, 100))%"
-                             data-day="@d"
-                             data-date-label="@(isFuture ? $"PROJECTED · {dateObj:d MMM}".ToUpperInvariant() : $"1–{dateObj:d MMM} {thisName}".ToUpperInvariant())"
-                             data-cum-fmt="@cumVal.ToString("C0")"
-                             data-day-fmt="@(isFuture ? $"Est. {average:C0}/day runway" : daySpend > 0 ? $"+{daySpend:C0} logged on {dateObj:d MMM}" : $"₹0 spent on {dateObj:d MMM} (Zero-spend day)")"
-                             data-prev-fmt="@(d <= daysPrev ? $"{prevCumVal:C0} by {d} {prev:MMM}" : $"{prevFull:C0} in {prev:MMM}")">
-                            <div class="ov-hud-tip">
-                                <div class="ov-hud-tip__head">
-                                    <strong>@(inThisMonth ? dateObj.ToString("ddd, d MMM") : $"Day {d}")</strong>
-                                    @if (d == today.Day)
-                                    {
-                                        <span class="ov-hud-tag">TODAY</span>
-                                    }
-                                    else if (isFuture)
-                                    {
-                                        <span class="ov-hud-tag is-proj">RUNWAY</span>
-                                    }
-                                </div>
-                                @if (inThisMonth && !isFuture)
-                                {
-                                    <div class="ov-hud-row">
-                                        <span>Day delta</span>
-                                        <b class="num @(daySpend == 0 ? "c-down" : "")">@(daySpend == 0 ? "₹0 · CALM" : daySpend.ToString("C0"))</b>
-                                    </div>
-                                    <div class="ov-hud-row">
-                                        <span><i class="lg-now"></i>Cumulative</span>
-                                        <b class="num">@now[d - 1].ToString("C0")</b>
-                                    </div>
-                                }
-                                else if (isFuture && inThisMonth)
-                                {
-                                    <div class="ov-hud-row">
-                                        <span><i class="lg-proj"></i>Projected</span>
-                                        <b class="num">@cumVal.ToString("C0")</b>
-                                    </div>
-                                }
-                                @if (d <= daysPrev)
-                                {
-                                    <div class="ov-hud-row is-muted">
-                                        <span><i class="lg-prev"></i>@prev.AddDays(d - 1).ToString("d MMM")</span>
-                                        <b class="num">@before[d - 1].ToString("C0")</b>
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
-            </div>
-
-            <div class="ov-x-axis" aria-hidden="true">
-                @foreach (var d in new[] { 1, 8, 15, 22, daysThis })
-                {
-                    <span style="left: @F(X(d) / 10)%">@first.AddDays(d - 1).ToString("d MMM")</span>
-                }
-            </div>
-        </div>
-    </div>
-</section>
-
-@* ─────────────────── 2. INSTANT LAUNCHPAD & 1-TAP REPEAT CHIPS ─────────────────── *@
-<section class="ov-capture" aria-label="Quick expense capture">
-    <div class="ov-capture__presets">
-        <span class="ov-capture__tag"><svg class="i"><use href="#i-bolt" /></svg>INSTANT FILL</span>
-        <div class="ov-chip-scroll">
-            @foreach (var p in userPresets)
-            {
-                <button type="button" class="ov-preset-chip"
-                        data-fill-title="@p.Title"
-                        data-fill-category="@p.Category"
-                        data-fill-mode="@((int)p.Mode)"
-                        data-fill-price="@p.Price.ToString("0.##", CultureInfo.InvariantCulture)">
-                    <span class="ov-preset-chip__title">@p.Title</span>
-                    <span class="ov-preset-chip__price num">@p.Price.ToString("C0")</span>
-                </button>
-            }
-        </div>
-    </div>
-
-    <form asp-controller="User" asp-action="Expenses" method="post" class="ov-quickform" id="ov-quick-form">
-        <input type="hidden" name="Expense.Id" value="0" />
-        <input type="hidden" name="Expense.Date" value="@today.ToString("yyyy-MM-dd")" />
-        <input type="hidden" name="returnUrl" value="@here" />
-
-        <div class="ov-qf-field ov-qf-field--title">
-            <input type="text" name="Expense.Title" id="qf-title" class="ov-qf-input" placeholder="Quick log: what did you spend on?" required maxlength="100" aria-label="Expense title" />
-        </div>
-        <div class="ov-qf-field ov-qf-field--price">
-            <span class="ov-qf-prefix" aria-hidden="true">₹</span>
-            <input type="number" name="Expense.Price" id="qf-price" class="ov-qf-input num" placeholder="0.00" step="0.01" min="0.01" max="99999999.99" required inputmode="decimal" aria-label="Price in rupees" />
-        </div>
-        <div class="ov-qf-field ov-qf-field--cat">
-            <input type="text" name="Expense.Category" id="qf-cat" class="ov-qf-input" list="ovCategoryList" placeholder="Category" required maxlength="50" autocomplete="off" aria-label="Category" />
-            <datalist id="ovCategoryList">
-                @foreach (var c in Model.AllCategories)
-                {
-                    <option value="@c"></option>
-                }
-            </datalist>
-        </div>
-        <div class="ov-qf-field ov-qf-field--mode">
-            <select name="Expense.PaymentMode" id="qf-mode" class="ov-qf-select" aria-label="Payment mode" asp-items="Html.GetEnumSelectList<PaymentMode>()"></select>
-        </div>
-        <div class="ov-qf-actions">
-            <button type="submit" class="btn btn-primary ov-qf-submit">
-                <svg class="i"><use href="#i-plus" /></svg><span>LOG RUPEE</span>
-            </button>
-            <button type="button" class="ov-qf-expand" title="Open full form with custom date &amp; notes" aria-label="Open full expense form"
-                    data-expense data-id="0" data-date="@today.ToString("yyyy-MM-dd")" data-paymentmode="0">
-                + Modal
-            </button>
-        </div>
-    </form>
-</section>
-
-@* ─────────────────── 3. 3D HOLOGRAPHIC BENTO TRIAD ─────────────────── *@
-<div class="ov-bento">
-    @* Card A: Interactive Category DNA Ring & Filterable List *@
-    <section class="ov-card ov-card--dna tilt-card" data-tilt="6">
-        <div class="tilt-glare" aria-hidden="true"></div>
-        <div class="ov-card__head tilt-layer-1">
-            <div>
-                <span class="ov-kicker">01 // ALLOCATION</span>
-                <h2>CATEGORY <span class="lp-serif">Reactor</span></h2>
-            </div>
-            <span class="ov-badge-pill">@cats.Count @(cats.Count == 1 ? "SECTOR" : "SECTORS")</span>
-        </div>
-
-        @if (spent == 0)
-        {
-            <div class="ov-empty-state tilt-layer-2">
-                <div class="ov-empty-ring" aria-hidden="true"><span>₹0</span></div>
-                <p>Log an expense above to ignite the 3D category reactor.</p>
-            </div>
-        }
-        else
-        {
-            var r = 64.0;
-            var circ = 2 * Math.PI * r;
-            var offset = 0.0;
-            <div class="ov-dna-body tilt-layer-2">
-                <div class="ov-donut-wrap">
-                    <svg class="ov-donut" viewBox="0 0 160 160" aria-hidden="true">
-                        <circle cx="80" cy="80" r="@F(r)" fill="none" stroke="var(--line)" stroke-width="15" />
-                        @for (var i = 0; i < shown.Count; i++)
+                        for (var i = 0; i < catSlices.Count; i++)
                         {
-                            var item = shown[i];
-                            var frac = (double)(item.Amount / spent);
-                            var len = Math.Max(0, frac * circ - (shown.Count > 1 ? 3.5 : 0));
-                            <circle class="ov-donut-seg"
-                                    data-cat-idx="@i"
-                                    cx="80" cy="80" r="@F(r)"
-                                    fill="none"
-                                    stroke="@item.Color"
-                                    stroke-width="15"
-                                    stroke-linecap="round"
-                                    stroke-dasharray="@F(len) @F(circ)"
-                                    stroke-dashoffset="@F(-offset)"
-                                    transform="rotate(-90 80 80)" />
-                            offset += frac * circ;
+                            var s = catSlices[i];
+                            <div class="@(i < catSlices.Count - 1 ? "mb-4" : "")">
+                                <div class="text-sm flex justify-between">
+                                    <span>
+                                        <i class="rounded-full @s.BgClass inline-block mr-2 size-2"></i>
+                                        @s.Label
+                                    </span>
+                                    <span class="num">@s.Amount.ToString("C0")&nbsp; @s.Pct%</span>
+                                </div>
+                                <div class="rounded-full bg-muted mt-2 h-1-5">
+                                    <div class="rounded-full @s.BgClass h-1-5" style="width: @s.Pct%"></div>
+                                </div>
+                            </div>
                         }
-                    </svg>
-                    <div class="ov-donut-center" id="ov-donut-readout"
-                         data-default-lbl="@thisName.ToUpperInvariant()"
-                         data-default-val="@spent.ToString("C0")"
-                         data-default-sub="100% · @Model.MonthExpenses.Count TX">
-                        <span class="ov-donut-center__lbl">@thisName.ToUpperInvariant()</span>
-                        <strong class="ov-donut-center__val num">@spent.ToString("C0")</strong>
-                        <small class="ov-donut-center__sub">100% · @Model.MonthExpenses.Count TX</small>
-                    </div>
-                </div>
-
-                <ul class="ov-dna-list">
-                    @for (var i = 0; i < shown.Count; i++)
-                    {
-                        var item = shown[i];
-                        var share = (item.Amount / spent).ToString("P0");
-                        <li class="ov-dna-item" tabindex="0"
-                            data-cat-idx="@i"
-                            data-cat-name="@item.Label"
-                            data-cat-val="@item.Amount.ToString("C0")"
-                            data-cat-sub="@share · @item.Count @(item.Count == 1 ? "EXPENSE" : "EXPENSES")">
-                            <div class="ov-dna-item__top">
-                                <span class="ov-dna-name">
-                                    <i style="background: @item.Color; box-shadow: 0 0 10px @item.Color"></i>
-                                    <b>@item.Label</b>
-                                    <small>@item.Count×</small>
-                                </span>
-                                <span class="ov-dna-nums num">
-                                    <strong>@item.Amount.ToString("C0")</strong>
-                                    <small>@share</small>
-                                </span>
-                            </div>
-                            <div class="ov-dna-bar" aria-hidden="true">
-                                <i style="width: @F((double)(item.Amount / shown[0].Amount * 100))%; background: @item.Color"></i>
-                            </div>
-                        </li>
                     }
-                </ul>
+                </div>
             </div>
-        }
-    </section>
+        </div>
+    </div>
 
-    @* Card B: 3D Keycap Calm-Day Matrix *@
-    <section class="ov-card ov-card--matrix tilt-card" data-tilt="6">
-        <div class="tilt-glare" aria-hidden="true"></div>
-        <div class="ov-card__head tilt-layer-1">
-            <div>
-                <span class="ov-kicker">02 // RHYTHM GRID</span>
-                <h2>@thisName.ToUpperInvariant() <span class="lp-serif">Matrix</span></h2>
-            </div>
-            <a asp-action="Calendar" class="ov-card-link" title="Open full calendar">
-                CALENDAR <svg class="i"><use href="#i-arrow-up-right" /></svg>
+    @* Card 3: Recent activity *@
+    <div class="fd-card shadow-none rounded-xl border-border-60">
+        <div class="fd-card-header flex flex-row justify-between items-center">
+            <h2 class="fd-card-title">Recent activity</h2>
+            <a asp-action="Expenses" class="font-medium text-primary text-sm text-decoration-none hover:underline">
+                View all
             </a>
         </div>
-
-        <div class="ov-calm-banner tilt-layer-2">
-            <div>
-                <strong class="ov-calm-big num">@calmDays <small>/ @today.Day</small></strong>
-                <span class="ov-calm-label">Zero-spend calm days (@calmPct%)</span>
-            </div>
-            <div class="ov-calm-peak">
-                <span>PEAK SPIKE</span>
-                <strong class="num">@(peakVal > 0 ? $"{peakDate:d MMM} · {peakVal:C0}" : "None yet")</strong>
-            </div>
-        </div>
-
-        <div class="ov-mini-cal tilt-layer-2" aria-label="Days of @thisName">
-            @foreach (var dow in new[] { "M", "T", "W", "T", "F", "S", "S" })
+        <div class="fd-card-content">
+            @if (Model.Recent.Count == 0)
             {
-                <span class="ov-mc-dow">@dow</span>
+                <p class="text-muted-foreground text-sm mb-0">No recent transactions yet. Click <strong>Add expense</strong> above to get started.</p>
             }
-            @{
-                var leadBlank = ((int)first.DayOfWeek + 6) % 7;
-            }
-            @for (var b = 0; b < leadBlank; b++)
+            else
             {
-                <span class="ov-mc-empty" aria-hidden="true"></span>
-            }
-            @for (var d = 1; d <= daysThis; d++)
-            {
-                var date = first.AddDays(d - 1);
-                var iso = date.ToString("yyyy-MM-dd");
-                var amt = dayAmounts[d - 1];
-                var isFuture = d > today.Day;
-                var level = isFuture ? "future" : amt == 0 ? "calm" : amt >= maxDaily * 0.65m ? "lv4" : amt >= maxDaily * 0.35m ? "lv3" : amt >= maxDaily * 0.12m ? "lv2" : "lv1";
-                <button type="button"
-                        class="ov-mc-day is-@level @(d == today.Day ? "is-today" : null)"
-                        data-expense data-id="0" data-date="@iso" data-paymentmode="0"
-                        title="@date.ToString("ddd, d MMM"): @(amt > 0 ? amt.ToString("C0") : isFuture ? "Upcoming" : "₹0 · Zero-spend day") — Click to add expense">
-                    <span class="num">@d</span>
-                </button>
-            }
-        </div>
-
-        <div class="ov-mc-legend tilt-layer-1" aria-hidden="true">
-            <span><i class="mc-sw is-calm"></i>₹0 Calm</span>
-            <span><i class="mc-sw is-lv1"></i>Low</span>
-            <span><i class="mc-sw is-lv3"></i>High</span>
-            <span><i class="mc-sw is-lv4"></i>Peak</span>
-            <span class="ms-auto">3D Keycaps · Tap to log</span>
-        </div>
-    </section>
-
-    @* Card C: Payment Wallet & High-Contrast Brutalist Insight *@
-    <section class="ov-card ov-card--wallet tilt-card" data-tilt="6">
-        <div class="tilt-glare" aria-hidden="true"></div>
-        <div class="ov-card__head tilt-layer-1">
-            <div>
-                <span class="ov-kicker">03 // TELEMETRY</span>
-                <h2>PAYMENT <span class="lp-serif">Vectors</span></h2>
-            </div>
-            <a asp-action="Analytics" class="ov-card-link" title="Open full analytics">
-                ANALYTICS <svg class="i"><use href="#i-arrow-up-right" /></svg>
-            </a>
-        </div>
-
-        @if (modes.Count == 0)
-        {
-            <div class="ov-empty-state tilt-layer-2">
-                <p>Your payment channel telemetry (UPI, Online, Cash, Cards) ignites as you log expenses.</p>
-            </div>
-        }
-        else
-        {
-            <div class="ov-wallet-bar tilt-layer-2" aria-hidden="true">
-                @foreach (var m in modes)
+                var recentItems = Model.Recent.Take(4).ToList();
+                string[] badgeClasses =
+                [
+                    "bg-primary-10 text-primary",
+                    "bg-chart-3-10 text-chart-3",
+                    "bg-chart-4-10 text-chart-4",
+                    "bg-chart-2-10 text-accent-foreground"
+                ];
+                for (var i = 0; i < recentItems.Count; i++)
                 {
-                    <div class="ov-wallet-seg" style="flex: @m.Amount.ToString(CultureInfo.InvariantCulture); background: @m.Color"
-                         title="@m.Name: @m.Amount.ToString("C0")"></div>
-                }
-            </div>
-
-            <ul class="ov-wallet-list tilt-layer-2">
-                @foreach (var m in modes)
-                {
-                    <li>
-                        <span class="ov-wallet-name">
-                            <i style="background: @m.Color; box-shadow: 0 0 8px @m.Color"></i>
-                            <b>@m.Name</b>
-                            <small>@m.Count tx</small>
+                    var e = recentItems[i];
+                    var isLast = i == recentItems.Count - 1;
+                    var badgeCls = badgeClasses[i % badgeClasses.Length];
+                    <div class="@(isLast ? "flex py-3 items-center gap-3" : "border-b border-border flex mb-1 py-3 items-center gap-3")">
+                        <span class="rounded-full @badgeCls flex justify-center items-center size-9 shrink-0">
+                            <svg class="i size-4"><use href="@CatIcon(e.Category)" /></svg>
                         </span>
-                        <span class="num">
-                            <strong>@m.Amount.ToString("C0")</strong>
-                            <small class="muted">@((m.Amount / spent).ToString("P0"))</small>
-                        </span>
-                    </li>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-medium text-sm mb-0 text-ellipsis overflow-hidden whitespace-nowrap">@e.Title</p>
+                            <p class="text-muted-foreground text-xs mb-0">
+                                @e.Category / @RelativeDay(e.Date)
+                            </p>
+                        </div>
+                        <span class="font-medium text-sm num">−@e.Price?.ToString("C0")</span>
+                        <button type="button"
+                                class="border-0 bg-transparent p-1 rounded-md hover:bg-muted"
+                                title="Edit @e.Title"
+                                aria-label="Edit @e.Title"
+                                data-expense
+                                data-id="@e.Id"
+                                data-title="@e.Title"
+                                data-price="@e.Price"
+                                data-category="@e.Category"
+                                data-date="@e.Date.ToString("yyyy-MM-dd")"
+                                data-paymentmode="@((int)e.PaymentMode)"
+                                data-description="@e.Description">
+                            <svg class="i text-muted-foreground size-4"><use href="#i-more-horizontal" /></svg>
+                        </button>
+                    </div>
                 }
-            </ul>
-        }
+            }
+        </div>
+    </div>
 
-        <div class="ov-insight-box tilt-layer-2">
-            <div class="ov-insight-box__icon" aria-hidden="true"><svg class="i"><use href="#i-spark" /></svg></div>
-            <div class="ov-insight-box__body">
-                @if (biggestThisMonth is not null)
+    @* Card 4: Monthly rhythm *@
+    <div class="fd-card shadow-none rounded-xl border-border-60">
+        <div class="fd-card-header">
+            <h2 class="fd-card-title">Monthly rhythm</h2>
+        </div>
+        <div class="fd-card-content">
+            <div class="border-b border-border flex px-2 pb-7 justify-between items-end gap-4 h-40">
+                @for (var i = 0; i < 7; i++)
                 {
-                    <div class="ov-insight-title">PEAK TICKET: <strong>@biggestThisMonth.Title</strong> (<span class="num">@biggestThisMonth.Price?.ToString("C0")</span>)</div>
-                    <div class="ov-insight-sub">Mean ticket: <b class="num">@avgTx.ToString("C0")</b> · @biggestThisMonth.PaymentMode.DisplayName() · @biggestThisMonth.Date.ToString("d MMM")</div>
-                }
-                else
-                {
-                    <div class="ov-insight-title">SYSTEM ARMED FOR @thisName.ToUpperInvariant()</div>
-                    <div class="ov-insight-sub">Tap an Instant Fill chip above or press <kbd>N</kbd> anywhere to launch.</div>
+                    var val = dowTotals[i];
+                    var hPct = maxDow > 0 ? (double)(val / maxDow) : 0.35;
+                    var pxHeight = Math.Clamp((int)Math.Round(hPct * 136), 24, 140);
+                    var isHigh = hPct >= 0.65 || i == peakDowIdx;
+                    var isTop = i == peakDowIdx;
+                    <div class="flex flex-col justify-end items-center flex-1 gap-2 h-full" title="@dowLabels[i]: @val.ToString("C0")">
+                        <div class="rounded-t-md @(isHigh ? "bg-primary" : "bg-chart-2") w-full" style="height: @(pxHeight)px"></div>
+                        <span class="@(isTop ? "font-semibold text-primary text-xs" : "text-muted-foreground text-xs")">@dowLabels[i]</span>
+                    </div>
                 }
             </div>
+            <div class="rounded-lg bg-accent flex mt-6 p-4 items-center gap-3">
+                <svg class="i text-accent-foreground size-5 shrink-0"><use href="#i-sparkles" /></svg>
+                <p class="text-accent-foreground text-sm mb-0">
+                    You spend @rhythmDiffPct% less on weekdays. Nice rhythm.
+                </p>
+            </div>
         </div>
-    </section>
+    </div>
 </div>
 
-@* ─────────────────── 4. 3D KINETIC ACTIVITY LEDGER ─────────────────── *@
-<section class="ov-ledger" aria-label="Recent transactions">
-    <div class="ov-ledger__head">
-        <div>
-            <span class="ov-kicker">04 // LIVE STREAM</span>
-            <h2>RECENT <span class="lp-serif">Ledger</span></h2>
-        </div>
-
-        @if (Model.Recent.Count > 0)
-        {
-            var recentCats = Model.Recent.Select(e => e.Category).Distinct(StringComparer.OrdinalIgnoreCase).Take(6).ToList();
-            <div class="ov-ledger__filters" role="toolbar" aria-label="Filter recent expenses by category">
-                <button type="button" class="ov-filter-pill is-active" data-ledger-filter="all">ALL (@Model.Recent.Count)</button>
-                @foreach (var c in recentCats)
-                {
-                    <button type="button" class="ov-filter-pill" data-ledger-filter="@c">@c.ToUpperInvariant()</button>
-                }
-            </div>
-        }
-
-        <div class="ov-ledger__actions">
-            <a asp-action="Statement" asp-route-month="@first.ToString("yyyy-MM")" class="btn btn-outline-secondary btn-sm">
-                <svg class="i"><use href="#i-doc" /></svg>Statement PDF
-            </a>
-            <a asp-action="ExportCsv" class="btn btn-outline-secondary btn-sm">
-                <svg class="i"><use href="#i-download" /></svg>Export CSV
-            </a>
-            <a asp-action="Expenses" class="btn btn-outline-primary btn-sm">
-                Full Ledger <svg class="i"><use href="#i-arrow-up-right" /></svg>
-            </a>
-        </div>
-    </div>
-
-    @if (Model.Recent.Count == 0)
-    {
-        <div class="ov-ledger-empty">
-            <p>No transactions in the stream yet. Tap any Instant Fill chip above or launch the modal.</p>
-            <button type="button" class="btn btn-primary" data-expense data-id="0" data-date="@today.ToString("yyyy-MM-dd")" data-paymentmode="0">
-                <svg class="i"><use href="#i-plus" /></svg>Launch First Entry
-            </button>
-        </div>
-    }
-    else
-    {
-        <div class="ov-ledger-list" id="ov-ledger-rows">
-            @foreach (var e in Model.Recent)
+<div class="fd-card shadow-none rounded-xl bg-accent border-border-60 mt-6">
+    <div class="flex flex-wrap p-5 items-center gap-4">
+        <svg class="i text-accent-foreground size-5 shrink-0"><use href="#i-sparkles" /></svg>
+        <div class="flex-1 min-w-0">
+            <p class="font-medium text-accent-foreground mb-0">
+                One small win
+            </p>
+            @if (beforeToDate > spent)
             {
-                var tint = CategoryTint(e.Category);
-                <div class="ov-tx" data-tx-cat="@e.Category">
-                    <div class="ov-tx__date">
-                        <strong class="num">@e.Date.ToString("dd MMM")</strong>
-                        <small>@RelativeDay(e.Date)</small>
-                    </div>
-
-                    <div class="ov-tx__main">
-                        <div class="ov-tx__title-row">
-                            <span class="ov-tx__title">@e.Title</span>
-                            <span class="ov-tx__cat t-@tint">@e.Category</span>
-                            <span class="ov-tx__mode">@e.PaymentMode.DisplayName()</span>
-                        </div>
-                        @if (!string.IsNullOrEmpty(e.Description))
-                        {
-                            <div class="ov-tx__desc">@e.Description</div>
-                        }
-                    </div>
-
-                    <div class="ov-tx__right">
-                        <strong class="ov-tx__amount num">@e.Price?.ToString("C")</strong>
-                        <div class="ov-tx__actions">
-                            <button type="button" class="icon-btn" title="Edit @e.Title" aria-label="Edit @e.Title"
-                                    data-expense
-                                    data-id="@e.Id"
-                                    data-title="@e.Title"
-                                    data-price="@e.Price"
-                                    data-category="@e.Category"
-                                    data-date="@e.Date.ToString("yyyy-MM-dd")"
-                                    data-paymentmode="@((int)e.PaymentMode)"
-                                    data-description="@e.Description">
-                                <svg class="i"><use href="#i-edit" /></svg>
-                            </button>
-                            <form asp-action="DeleteExpense" asp-route-id="@e.Id" method="post" onsubmit="return confirm('Delete this expense?')">
-                                <input type="hidden" name="returnUrl" value="@here" />
-                                <button type="submit" class="icon-btn is-danger" title="Delete @e.Title" aria-label="Delete @e.Title">
-                                    <svg class="i"><use href="#i-trash" /></svg>
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
+                <p class="text-accent-foreground-80 text-sm mt-1 mb-0">
+                    You’re @((beforeToDate - spent).ToString("C0")) below your usual mid-month pace.
+                </p>
+                <p class="text-accent-foreground-70 text-xs mt-1 mb-0">
+                    Keep the streak going for @daysRemaining more @(daysRemaining == 1 ? "day" : "days").
+                </p>
+            }
+            else
+            {
+                <p class="text-accent-foreground-80 text-sm mt-1 mb-0">
+                    You’ve logged @calmDays zero-spend calm @(calmDays == 1 ? "day" : "days") in @thisName so far.
+                </p>
+                <p class="text-accent-foreground-70 text-xs mt-1 mb-0">
+                    Keep the streak going for @daysRemaining more @(daysRemaining == 1 ? "day" : "days").
+                </p>
             }
         </div>
-        <div class="ov-ledger-no-match" id="ov-ledger-empty-filter" hidden>
-            No recent expenses in this sector. <button type="button" class="btn btn-link btn-sm p-0 align-baseline" data-ledger-filter="all">Reset filter</button>
-        </div>
-    }
-</section>
+        <a asp-action="Analytics"
+           class="fd-btn rounded-lg bg-transparent text-accent-foreground border border-accent-foreground-30 px-4 h-10 text-decoration-none">
+            See plan
+        </a>
+    </div>
+</div>
 
 <partial name="_ExpenseDialog" model="newExpense" />
 

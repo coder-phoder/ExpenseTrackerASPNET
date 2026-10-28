@@ -1,33 +1,92 @@
-/* High-Contrast Kinetic Dark Theme ("Obsidian Void & Acid Volt").
+/* Lumen Finance-Dashboard Dark Theme (from e717527e-b6f1-47d3-afb7-138726ecb1df.css).
    _Theme.cshtml sets html[data-bs-theme] before first paint; toggleTheme() flips it. */
-:root[data-bs-theme=dark] {
+:root[data-bs-theme=dark],
+[data-appearance="dark"] {
   color-scheme: dark;
-  --canvas: #050509;
-  --surface: #0d0e17;
-  --ink: #f4f6ff;
-  --muted: #8b93b0;
-  --line: #1e2136;
-  --line-strong: #2e3352;
-  --hover: #161829;
-  --accent: #ccff00;
-  --accent-2: #00f0ff;
-  --accent-3: #ff2a85;
-  --accent-btn: #ccff00;
-  --accent-btn-ink: #050509;
-  --accent-btn-hover: #dfff4f;
-  --accent-soft: rgba(204, 255, 0, 0.12);
-  --up: #ff3366;
-  --up-soft: rgba(255, 51, 102, 0.16);
-  --down: #00f59b;
-  --down-soft: rgba(0, 245, 155, 0.14);
-  --rest: #3d4366;
-  --shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.85);
-  --series-1: #ccff00;
-  --series-2: #00f0ff;
-  --series-3: #ff2a85;
-  --series-4: #9d5cff;
-  --series-5: #ffb800;
-  --series-6: #00f59b;
+  --background: oklch(0.16 0.03 265);
+  --foreground: oklch(0.94 0.018 92);
+  --card: oklch(0.205 0.035 265);
+  --card-foreground: oklch(0.94 0.018 92);
+  --popover: oklch(0.225 0.038 265);
+  --popover-foreground: oklch(0.94 0.018 92);
+  --primary: oklch(0.74 0.16 31);
+  --primary-foreground: oklch(0.15 0.028 265);
+  --secondary: oklch(0.255 0.035 265);
+  --secondary-foreground: oklch(0.9 0.02 92);
+  --muted-bg: oklch(0.25 0.035 265);
+  --muted-foreground: oklch(0.73 0.035 258);
+  --accent-bg: oklch(0.3 0.07 165);
+  --accent-foreground: oklch(0.88 0.1 165);
+  --destructive: oklch(0.68 0.16 25);
+  --border: oklch(1 0 0 / 13%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.74 0.16 31);
+  --chart-1: oklch(0.74 0.16 31);
+  --chart-2: oklch(0.78 0.12 160);
+  --chart-3: oklch(0.76 0.13 245);
+  --chart-4: oklch(0.72 0.13 285);
+  --chart-5: oklch(0.8 0.14 82);
+  --sidebar: oklch(0.125 0.025 265);
+  --sidebar-foreground: oklch(0.94 0.018 92);
+  --sidebar-primary: oklch(0.78 0.12 160);
+  --sidebar-primary-foreground: oklch(0.15 0.028 265);
+  --sidebar-accent: oklch(0.23 0.035 265);
+  --sidebar-accent-foreground: oklch(0.94 0.018 92);
+  --sidebar-border: oklch(1 0 0 / 13%);
+  --sidebar-ring: oklch(0.78 0.12 160);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted-bg);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent-bg);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Mapped legacy tokens for Expenses/Calendar/Analytics/Profile */
+  --canvas: var(--background);
+  --surface: var(--card);
+  --surface-solid: var(--card);
+  --ink: var(--foreground);
+  --muted: var(--muted-foreground);
+  --line: var(--border);
+  --line-strong: oklch(1 0 0 / 20%);
+  --hover: var(--muted-bg);
+  --accent: var(--primary);
+  --accent-btn: var(--primary);
+  --accent-btn-ink: var(--primary-foreground);
+  --accent-btn-hover: oklch(0.78 0.16 31);
+  --accent-soft: color-mix(in oklch, var(--primary) 15%, transparent);
+  --series-1: var(--chart-1);
+  --series-2: var(--chart-2);
+  --series-3: var(--chart-3);
+  --series-4: var(--chart-4);
+  --series-5: var(--chart-5);
+  --series-6: oklch(0.75 0.15 200);
 }
 
 /* Theme switch (_ThemeToggle.cshtml): its label names the theme a click switches to */

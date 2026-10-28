@@ -92,7 +92,7 @@ public class AccountController(AppDbContext db, IConfiguration config) : Control
 
     // Also called after a profile edit, so the cookie picks up the new name.
     internal static Task SignInAsync(HttpContext http, User user, bool persistent = false) =>
-        SignInAsync(http, persistent, new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()), new Claim(ClaimTypes.Name, user.Name));
+        SignInAsync(http, persistent, new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()), new Claim(ClaimTypes.Name, user.Name), new Claim(ClaimTypes.Email, user.Email));
 
     internal static bool IsAdminEmail(IConfiguration config, string email) =>
         string.Equals(email, config["Admin:Email"], StringComparison.OrdinalIgnoreCase);
