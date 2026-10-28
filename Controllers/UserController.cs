@@ -39,12 +39,15 @@ public class UserController(AppDbContext db, IConfiguration config) : Controller
             .GroupBy(e => e.Date)
             .Select(g => new Total<DateOnly>(g.Key, g.Sum(e => e.Price) ?? 0))
             .ToDictionaryAsync(d => d.Key, d => d.Amount);
-        var categories = await expenses.Where(e => e.Date >= first && e.Date < first.AddMonths(1))
-            .GroupBy(e => e.Category)
-            .Select(g => new Total<string>(g.Key, g.Sum(e => e.Price) ?? 0))
+        var monthExpenses = await expenses.Where(e => e.Date >= first && e.Date < first.AddMonths(1))
+            .OrderByDescending(e => e.Date).ThenByDescending(e => e.Id)
             .ToListAsync();
-        var recent = await expenses.OrderByDescending(e => e.Date).ThenByDescending(e => e.Id).Take(6).ToListAsync();
-        return View(new DashboardSummary(today, days, [.. categories.OrderByDescending(c => c.Amount)], recent, await CategoriesAsync()));
+        var categories = monthExpenses.GroupBy(e => e.Category)
+            .Select(g => new Total<string>(g.Key, g.Sum(e => e.Price ?? 0)))
+            .OrderByDescending(c => c.Amount)
+            .ToList();
+        var recent = await expenses.OrderByDescending(e => e.Date).ThenByDescending(e => e.Id).Take(10).ToListAsync();
+        return View(new DashboardSummary(today, days, categories, recent, await CategoriesAsync(), monthExpenses));
     }
 
     [Authorize]
@@ -259,4 +262,4 @@ public class UserController(AppDbContext db, IConfiguration config) : Controller
 }
 
 // Days holds each day's total over last month and this one; Categories this month's totals, largest first; AllCategories feeds the expense form.
-public record DashboardSummary(DateOnly Today, Dictionary<DateOnly, decimal> Days, List<Total<string>> Categories, List<Expense> Recent, IReadOnlyList<string> AllCategories);
+public record DashboardSummary(DateOnly Today, Dictionary<DateOnly, decimal> Days, List<Total<string>> Categories, List<Expense> Recent, IReadOnlyList<string> AllCategories, List<Expense> MonthExpenses);
