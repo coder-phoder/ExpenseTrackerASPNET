@@ -65,11 +65,13 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 var app = builder.Build();
 
-// Auto-apply EF Core migrations on startup when a database connection string is configured.
+// Auto-apply EF Core migrations and ensure the ideal demo account (test@test.com) exists on startup.
 if (!string.IsNullOrWhiteSpace(connStr))
 {
     using var scope = app.Services.CreateScope();
-    scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+    db.EnsureDemoUser();
 }
 
 app.UseForwardedHeaders();
