@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ExpenseTracker.Controllers;
 using ExpenseTracker.Models;
@@ -20,10 +21,20 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             Users.Add(user);
             SaveChanges();
         }
+        else if (AccountController.Hasher.VerifyHashedPassword(user, user.PasswordHash, "test123") == PasswordVerificationResult.Failed)
+        {
+            user.PasswordHash = AccountController.Hasher.HashPassword(user, "test123");
+            SaveChanges();
+        }
 
-        if (Expenses.Any(e => e.UserId == user.Id))
+        var existingCount = Expenses.Count(e => e.UserId == user.Id);
+        if (existingCount >= 100)
         {
             return;
+        }
+        if (existingCount > 0)
+        {
+            Expenses.RemoveRange(Expenses.Where(e => e.UserId == user.Id));
         }
 
         var today = DateOnly.FromDateTime(DateTime.Today);
