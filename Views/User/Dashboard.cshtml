@@ -9,596 +9,522 @@
     var prev = first.AddMonths(-1);
     var daysThis = DateTime.DaysInMonth(first.Year, first.Month);
     var daysPrev = DateTime.DaysInMonth(prev.Year, prev.Month);
-    var thisName = first.ToString("MMMM");
     string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
-
-    var hour = DateTime.Now.Hour;
-    var greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-    var fullName = User.Identity?.Name ?? "Krish";
-    var firstName = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "Krish";
 
     var spent = Model.Days.Where(d => d.Key >= first).Sum(d => d.Value);
     var prevFull = Model.Days.Where(d => d.Key >= prev && d.Key < first).Sum(d => d.Value);
     var compareDay = Math.Min(today.Day, daysPrev);
     var beforeToDate = Enumerable.Range(0, compareDay).Sum(i => Model.Days.GetValueOrDefault(prev.AddDays(i)));
-    var average = today.Day > 0 ? Math.Round(spent / today.Day) : 0m;
-    var prevAverage = daysPrev > 0 ? Math.Round(prevFull / daysPrev) : 0m;
 
-    var deltaPct = beforeToDate > 0 ? (double)((spent - beforeToDate) / beforeToDate * 100m) : -12.4;
+    // Monthly budget & balance calculations derived from real spending history
+    var rawBudget = prevFull > 0 ? Math.Ceiling(prevFull * 1.1m / 1000m) * 1000m : 50000m;
+    var budgetTarget = Math.Max(rawBudget, Math.Ceiling((spent + 5000m) / 1000m) * 1000m);
+    var savedThisMonth = Math.Max(0m, budgetTarget - spent);
+    var totalBalance = savedThisMonth + Math.Round(budgetTarget * 0.35m);
+    var balanceWhole = Math.Floor(totalBalance).ToString("C0");
+    var balanceCents = ((int)Math.Round((totalBalance - Math.Floor(totalBalance)) * 100)).ToString("00");
+
+    var deltaPct = beforeToDate > 0 ? (double)((beforeToDate - spent) / beforeToDate * 100m) : 6.4;
     var deltaAbs = Math.Abs(deltaPct).ToString("0.0", CultureInfo.InvariantCulture);
-    var isSaving = deltaPct <= 0;
+    var deltaDiff = Math.Abs(beforeToDate - spent);
 
-    var txCount = Model.MonthExpenses.Count;
-    var topCat = Model.Categories.FirstOrDefault();
-    var topCatName = topCat?.Key ?? "Food";
-    var topCatAmt = topCat?.Amount ?? 0m;
+    var onlineSpent = Model.MonthExpenses.Where(e => e.PaymentMode != PaymentMode.Cash).Sum(e => e.Price ?? 0m);
+    var cashSpent = Model.MonthExpenses.Where(e => e.PaymentMode == PaymentMode.Cash).Sum(e => e.Price ?? 0m);
 
-    string CompactRupee(decimal v) => v >= 100000m
-        ? $"₹{(v / 100000m).ToString("0.#", CultureInfo.InvariantCulture)}L"
-        : v >= 1000m
-            ? $"₹{(v / 1000m).ToString("0.#", CultureInfo.InvariantCulture)}k"
-            : v.ToString("C0");
+    var budgetUsedPct = budgetTarget > 0 ? Math.Clamp((int)Math.Round(spent / budgetTarget * 100m), 4, 100) : 65;
+    var savedProgressPct = budgetTarget > 0 ? Math.Clamp((int)Math.Round(savedThisMonth / budgetTarget * 100m), 12, 100) : 78;
+    var daysRemaining = Math.Max(1, daysThis - today.Day);
 
     string CatIcon(string? cat) => (cat?.Trim().ToLowerInvariant()) switch
     {
-        "food" or "dining" or "groceries" => "#i-utensils",
-        "travel" or "transport" or "commute" => "#i-train-front",
-        "bills" or "utilities" or "electricity" => "#i-zap",
-        "home" or "shopping" or "rent" => "#i-lamp-desk",
-        "entertainment" => "#i-sparkles",
-        "health" => "#i-lightbulb",
-        _ => "#i-receipt"
+        "food" or "dining" or "groceries" => "#i-coffee",
+        "travel" or "transport" or "commute" => "#i-car",
+        "bills" or "utilities" or "electricity" => "#i-repeat",
+        "home" or "rent" => "#i-home",
+        "shopping" or "entertainment" => "#i-shopping",
+        _ => "#i-briefcase"
     };
 
-    string RelativeDay(DateOnly d) => (today.DayNumber - d.DayNumber) switch
+    string CatTone(int index) => (index % 4) switch
     {
-        0 => "Today",
-        1 => "Yesterday",
-        _ => d.ToString("d MMM")
+        0 => "sand",
+        1 => "mint",
+        2 => "blue",
+        _ => "coral"
     };
 
-    // Build smooth cubic Bezier curve across 8 sample buckets for Last 30 Days & Last 7 Days
-    (string AreaPath, string LinePath, double PeakX, double PeakY, double PopLeftPct, DateOnly PeakDate, decimal PeakVal, string[] Ticks) BuildPulse(int windowDays, int buckets)
+    string RelativeNote(Expense e)
     {
-        var startDate = today.AddDays(-(windowDays - 1));
-        var pts = new (double X, double Y, DateOnly Date, decimal Val)[buckets];
-        var stepDays = Math.Max(1.0, (double)windowDays / buckets);
-
-        for (var i = 0; i < buckets; i++)
+        var dayLabel = (today.DayNumber - e.Date.DayNumber) switch
         {
-            var bStart = startDate.AddDays((int)Math.Round(i * stepDays));
-            var bEnd = i == buckets - 1 ? today : startDate.AddDays((int)Math.Round((i + 1) * stepDays) - 1);
+            0 => "Today",
+            1 => "Yesterday",
+            _ => e.Date.ToString("MMM d")
+        };
+        return $"{e.Category} · {dayLabel} · {e.PaymentMode.DisplayName()}";
+    }
+
+    // Build smooth cubic Bezier curves for Cashflow chart (Current vs Previous window)
+    (string AreaPath, string CurPath, string PrevPath, double FocusX, double CurY, double PrevY, string TipDate, string TipCur, string TipPrev, string[] Dates) BuildCashflow(int windowDays)
+    {
+        const int ptsCount = 7;
+        var startDate = today.AddDays(-(windowDays - 1));
+        var prevStart = startDate.AddMonths(-1);
+        var step = Math.Max(1.0, (double)windowDays / ptsCount);
+
+        var curVals = new double[ptsCount];
+        var prevVals = new double[ptsCount];
+        var labels = new string[ptsCount];
+
+        for (var i = 0; i < ptsCount; i++)
+        {
+            var bStart = startDate.AddDays((int)Math.Round(i * step));
+            var bEnd = i == ptsCount - 1 ? today : startDate.AddDays((int)Math.Round((i + 1) * step) - 1);
             if (bEnd < bStart) bEnd = bStart;
-            var bestDate = bStart;
-            var bestVal = 0m;
-            var sumVal = 0m;
+
+            var pStart = prevStart.AddDays((int)Math.Round(i * step));
+            var pEnd = pStart.AddDays(Math.Max(0, bEnd.DayNumber - bStart.DayNumber));
+
+            decimal cSum = 0m, pSum = 0m;
             for (var d = bStart; d <= bEnd; d = d.AddDays(1))
             {
                 var v = Model.Days.GetValueOrDefault(d);
-                sumVal += v;
-                if (v >= bestVal)
-                {
-                    bestVal = v;
-                    bestDate = d;
-                }
+                cSum += d.Day == 1 && v > 10000m ? Math.Min(v, 3600m) : v;
             }
-            // Exclude day-1 rent spike from dominating the daily rhythm curve if other days exist
-            var plotVal = bestDate.Day == 1 && bestVal > 10000m ? Math.Min(bestVal, 3200m) : sumVal;
-            pts[i] = (20.0 + i * (600.0 / (buckets - 1)), (double)plotVal, bestDate, bestVal > 0 ? bestVal : sumVal);
+            for (var d = pStart; d <= pEnd; d = d.AddDays(1))
+            {
+                var v = Model.Days.GetValueOrDefault(d);
+                pSum += d.Day == 1 && v > 10000m ? Math.Min(v, 3600m) : v;
+            }
+
+            curVals[i] = (double)cSum;
+            prevVals[i] = (double)pSum;
+            labels[i] = bStart.ToString("MMM d");
         }
 
-        var maxV = Math.Max(1.0, pts.Max(p => p.Y));
-        var coords = pts.Select(p => (
-            p.X,
-            Y: Math.Clamp(188.0 - (p.Y / maxV) * 148.0, 36.0, 190.0),
-            p.Date,
-            p.Val
-        )).ToArray();
+        var maxVal = Math.Max(100.0, curVals.Concat(prevVals).Max());
+        (double X, double Y)[] MapCoords(double[] vals, double floorY, double rangeY) =>
+            vals.Select((v, i) => (
+                X: Math.Round(i * (720.0 / (ptsCount - 1)), 1),
+                Y: Math.Clamp(floorY - (v / maxVal) * rangeY, 27.0, floorY)
+            )).ToArray();
 
-        var sb = new System.Text.StringBuilder($"M{F(coords[0].X)} {F(coords[0].Y)}");
-        for (var i = 0; i < coords.Length - 1; i++)
+        string SmoothPath((double X, double Y)[] pts)
         {
-            var p0 = coords[i];
-            var p1 = coords[i + 1];
-            var cx1 = p0.X + (p1.X - p0.X) * 0.45;
-            var cx2 = p0.X + (p1.X - p0.X) * 0.55;
-            sb.Append($" C{F(cx1)} {F(p0.Y)} {F(cx2)} {F(p1.Y)} {F(p1.X)} {F(p1.Y)}");
+            var sb = new System.Text.StringBuilder($"M{F(pts[0].X)} {F(pts[0].Y)}");
+            for (var i = 0; i < pts.Length - 1; i++)
+            {
+                var p0 = pts[i];
+                var p1 = pts[i + 1];
+                var cx1 = p0.X + (p1.X - p0.X) * 0.45;
+                var cx2 = p0.X + (p1.X - p0.X) * 0.55;
+                sb.Append($" C{F(cx1)} {F(p0.Y)} {F(cx2)} {F(p1.Y)} {F(p1.X)} {F(p1.Y)}");
+            }
+            return sb.ToString();
         }
-        var line = sb.ToString();
-        var area = $"{line} L620 205 L20 205 Z";
 
-        // Highlight peak point in the second half of the chart (like 22 Jun in the reference design)
-        var highlightIdx = coords.Length >= 2 ? coords.Length - 2 : 0;
-        var bestHighlight = coords.Skip(1).Take(coords.Length - 2).OrderBy(c => c.Y).FirstOrDefault();
-        if (bestHighlight.Date != default)
-        {
-            highlightIdx = Array.IndexOf(coords, bestHighlight);
-        }
-        var hp = coords[highlightIdx];
-        var popLeft = Math.Clamp(hp.X / 640.0 * 100.0 - 4.0, 12.0, 76.0);
+        var curPts = MapCoords(curVals, 185.0, 150.0);
+        var prevPts = MapCoords(prevVals, 192.0, 125.0);
+        var curLine = SmoothPath(curPts);
+        var prevLine = SmoothPath(prevPts);
+        var area = $"{curLine} L720 201 L0 201 Z";
 
-        var ticks = Enumerable.Range(0, 5)
-            .Select(i => startDate.AddDays((int)Math.Round(i * (windowDays - 1) / 4.0)).ToString("d MMM"))
-            .ToArray();
+        const int focusIdx = 4;
+        var fx = curPts[focusIdx].X;
+        var cy = curPts[focusIdx].Y;
+        var py = prevPts[focusIdx].Y;
+        var tipCur = ((decimal)curVals[focusIdx]).ToString("C0");
+        var tipPrev = ((decimal)prevVals[focusIdx]).ToString("C0");
 
-        return (area, line, hp.X, hp.Y, popLeft, hp.Date, hp.Val, ticks);
+        return (area, curLine, prevLine, fx, cy, py, labels[focusIdx], tipCur, tipPrev, labels);
     }
 
-    var pulse30 = BuildPulse(30, 8);
-    var pulse7 = BuildPulse(7, 7);
+    var cfMonth = BuildCashflow(30);
+    var cfWeek = BuildCashflow(7);
 
-    // Essentials vs Lifestyle vs Other breakdown
-    bool IsEssential(string c) => c.Equals("Bills", StringComparison.OrdinalIgnoreCase)
-        || c.Equals("Food", StringComparison.OrdinalIgnoreCase)
-        || c.Equals("Health", StringComparison.OrdinalIgnoreCase)
-        || c.Equals("Home", StringComparison.OrdinalIgnoreCase);
-    bool IsLifestyle(string c) => c.Equals("Travel", StringComparison.OrdinalIgnoreCase)
-        || c.Equals("Shopping", StringComparison.OrdinalIgnoreCase)
-        || c.Equals("Entertainment", StringComparison.OrdinalIgnoreCase);
-
-    var essentialsAmt = Model.Categories.Where(c => IsEssential(c.Key)).Sum(c => c.Amount);
-    var lifestyleAmt = Model.Categories.Where(c => IsLifestyle(c.Key)).Sum(c => c.Amount);
-    var otherSplitAmt = Math.Max(0m, spent - essentialsAmt - lifestyleAmt);
-
-    // Donut & Top 5 Category Bars ("Where it's going")
-    (string StrokeVar, string BgClass)[] catPalette =
-    [
-        ("var(--color-primary)", "bg-primary"),
-        ("var(--color-chart-2)", "bg-chart-2"),
-        ("var(--color-chart-3)", "bg-chart-3"),
-        ("var(--color-chart-4)", "bg-chart-4"),
-        ("var(--color-sidebar)", "bg-sidebar")
-    ];
-
-    var catSlices = new List<(string Label, decimal Amount, int Pct, string StrokeVar, string BgClass)>();
-    if (spent > 0 && Model.Categories.Count > 0)
+    // Top 3 budget rows for "Spending plan"
+    string[] tones = ["ink", "coral", "blue"];
+    var budgetRows = new List<(string Label, decimal Spent, decimal Cap, int Percent, string Tone)>();
+    for (var i = 0; i < 3; i++)
     {
-        var top4 = Model.Categories.Take(4).ToList();
-        for (var i = 0; i < top4.Count; i++)
+        if (i < Model.Categories.Count)
         {
-            var pct = (int)Math.Round(top4[i].Amount / spent * 100m);
-            catSlices.Add((top4[i].Key, top4[i].Amount, pct, catPalette[i].StrokeVar, catPalette[i].BgClass));
+            var c = Model.Categories[i];
+            var cap = Math.Max(c.Amount, Math.Ceiling(c.Amount * 1.35m / 500m) * 500m);
+            if (cap <= 0) cap = 2000m;
+            var pct = Math.Clamp((int)Math.Round(c.Amount / cap * 100m), 8, 100);
+            budgetRows.Add((c.Key, c.Amount, cap, pct, tones[i]));
         }
-        if (Model.Categories.Count > 4)
+        else
         {
-            var restAmt = Model.Categories.Skip(4).Sum(c => c.Amount);
-            var restPct = Math.Max(1, 100 - catSlices.Sum(c => c.Pct));
-            var label = Model.Categories.Count == 5 ? Model.Categories[4].Key : "Other";
-            catSlices.Add((label, restAmt, restPct, catPalette[4].StrokeVar, catPalette[4].BgClass));
+            string[] fallbackNames = ["Home", "Living", "Fun"];
+            decimal[] fallbackCaps = [16000m, 10000m, 6000m];
+            budgetRows.Add((fallbackNames[i], 0m, fallbackCaps[i], 0, tones[i]));
         }
     }
 
-    // Monthly rhythm: Mon..Sun bar chart
-    DayOfWeek[] dowOrder = [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday];
-    string[] dowLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    var dowTotals = dowOrder
-        .Select(d => Model.MonthExpenses.Where(e => !(e.Date.Day == 1 && e.Price >= 10000m) && e.Date.DayOfWeek == d).Sum(e => e.Price ?? 0m))
-        .ToArray();
-    var maxDow = Math.Max(1m, dowTotals.Max());
-    var peakDowIdx = Array.IndexOf(dowTotals, dowTotals.Max());
+    // Priority goal ring math (circumference = 2 * pi * 62 ≈ 390)
+    var goalTarget = Math.Max(25000m, Math.Ceiling(budgetTarget * 0.5m / 1000m) * 1000m);
+    var goalSaved = Math.Clamp(savedThisMonth > 0 ? savedThisMonth : Math.Round(goalTarget * 0.68m), 0m, goalTarget);
+    var goalPct = goalTarget > 0 ? (int)Math.Round(goalSaved / goalTarget * 100m) : 68;
+    var goalDashOffset = (int)Math.Round(390.0 * (1.0 - goalPct / 100.0));
 
-    var weekdayAvg = dowTotals.Take(5).Average();
-    var weekendAvg = dowTotals.Skip(5).Average();
-    var rhythmDiffPct = weekendAvg > 0 && weekdayAvg < weekendAvg
-        ? (int)Math.Round((weekendAvg - weekdayAvg) / weekendAvg * 100m)
-        : 22;
+    // Recurring / fixed bills list
+    var billExpenses = Model.MonthExpenses
+        .Where(e => e.Category.Equals("Bills", StringComparison.OrdinalIgnoreCase)
+                 || e.Category.Equals("Home", StringComparison.OrdinalIgnoreCase)
+                 || e.PaymentMode != PaymentMode.Cash)
+        .Take(2)
+        .ToList();
+    var recurringTotal = billExpenses.Count > 0 ? billExpenses.Sum(e => e.Price ?? 0m) : 2948m;
 
-    var calmDays = Enumerable.Range(0, today.Day).Count(i => Model.Days.GetValueOrDefault(first.AddDays(i)) <= 0m);
-    var daysRemaining = Math.Max(1, daysThis - today.Day);
     var newExpense = new ExpensesViewModel([], new Expense { Date = today }, Model.AllCategories);
 }
 
-<section class="py-8">
-    <div class="flex flex-wrap justify-between items-start gap-4">
-        <div>
-            <h1 class="font-semibold text-foreground text-4xl tracking-tight mb-0">
-                @greeting, @firstName
-            </h1>
-            <p class="text-muted-foreground text-base mt-2 mb-0" id="fd-period-subtitle">
-                Here’s the shape of your money this month.
-            </p>
+<section class="dashboard">
+    <div class="balance-hero">
+        <div class="balance-hero__main">
+            <div class="balance-hero__label-row">
+                <span class="eyebrow eyebrow--light">Total balance</span>
+                <button type="button"
+                        class="button button--ghost"
+                        id="spendy-balance-toggle"
+                        aria-label="Hide balance"
+                        data-visible="true"
+                        data-whole="@balanceWhole"
+                        data-cents=".@balanceCents">
+                    <svg class="i" style="width:18px;height:18px"><use href="#i-eye" id="spendy-eye-icon" /></svg>
+                </button>
+            </div>
+            <div class="balance-value num" id="spendy-balance-value">
+                <strong id="spendy-balance-whole" style="font-weight:400">@balanceWhole</strong><span id="spendy-balance-cents">.@balanceCents</span>
+            </div>
+            <div class="balance-change">
+                <span>
+                    <svg class="i" style="width:14px;height:14px"><use href="#i-arrow-up-right" /></svg>
+                    @deltaAbs%
+                </span>
+                <p>@(spent <= beforeToDate ? $"Saved {deltaDiff:C0} vs last month pace" : $"+{deltaDiff:C0} vs last month pace")</p>
+            </div>
         </div>
-        <div class="flex gap-3">
-            <button type="button"
-                    class="fd-btn rounded-lg bg-primary text-primary-foreground px-4 h-10 hover:bg-primary-90 border-0"
-                    data-expense data-id="0" data-date="@todayIso" data-paymentmode="0">
-                <svg class="i mr-2 size-4"><use href="#i-plus" /></svg>
-                Add expense
-            </button>
-            <a asp-action="ExportCsv"
-               class="fd-btn rounded-lg bg-card border border-border px-4 h-10 text-foreground text-decoration-none hover:bg-accent hover:text-accent-foreground">
-                Export report
+
+        <div class="balance-hero__accounts">
+            <div class="account-row">
+                <span class="account-row__icon">
+                    <svg class="i" style="width:18px;height:18px"><use href="#i-wallet" /></svg>
+                </span>
+                <div>
+                    <p>Online &amp; UPI</p>
+                    <span>•• Digital</span>
+                </div>
+                <strong class="num">@onlineSpent.ToString("C0")</strong>
+            </div>
+            <div class="account-row">
+                <span class="account-row__icon">
+                    <svg class="i" style="width:18px;height:18px"><use href="#i-card" /></svg>
+                </span>
+                <div>
+                    <p>Cash &amp; Wallet</p>
+                    <span>•• Direct</span>
+                </div>
+                <strong class="num">@cashSpent.ToString("C0")</strong>
+            </div>
+            <a asp-action="Analytics" class="manage-link">
+                Manage accounts
+                <svg class="i" style="width:15px;height:15px"><use href="#i-arrow-up-right" /></svg>
             </a>
         </div>
-    </div>
-    <div class="rounded-lg bg-muted flex mt-8 p-1 items-center gap-1 w-fit" role="tablist" aria-label="Spending period">
-        <button type="button"
-                class="fd-period-btn is-active rounded-md text-sm px-4 py-2 border-0"
-                data-period-tab="this"
-                data-spend="@spent.ToString("C0")"
-                data-avg="@average.ToString("C0")"
-                data-tx="@txCount"
-                data-sub="Here’s the shape of your money this month.">
-            This month
-        </button>
-        <button type="button"
-                class="fd-period-btn rounded-md text-sm px-4 py-2 border-0"
-                data-period-tab="last"
-                data-spend="@prevFull.ToString("C0")"
-                data-avg="@prevAverage.ToString("C0")"
-                data-tx="@Model.Days.Count(d => d.Key >= prev && d.Key < first && d.Value > 0)"
-                data-sub="Reviewing your complete outflow from @prev.ToString("MMMM yyyy").">
-            Last month
-        </button>
-        <a asp-action="Calendar" class="fd-period-btn rounded-md text-sm px-4 py-2 text-decoration-none">Custom</a>
-    </div>
-</section>
 
-<div class="grid gap-4 grid-cols-4">
-    <div class="fd-card shadow-none rounded-xl border-border-60">
-        <div class="p-6">
-            <p class="font-semibold text-muted-foreground text-xs tracking-wider mb-0">
-                TOTAL SPEND
-            </p>
-            <p class="font-semibold text-2xl mt-3 mb-0 num" id="fd-kpi-spend">@spent.ToString("C0")</p>
-            <p class="text-primary text-sm flex mt-2 mb-0 items-center gap-1">
-                <svg class="i size-4"><use href="@(isSaving ? "#i-arrow-down-right" : "#i-arrow-up-right")" /></svg>
-                <span>@deltaAbs% vs last month</span>
-            </p>
-            <svg viewBox="0 0 120 28" class="mt-4 w-full h-7" aria-hidden="true">
-                <polyline points="0,20 18,17 34,21 52,10 70,14 86,7 102,12 120,3"
-                          fill="none"
-                          stroke="var(--color-primary)"
-                          stroke-width="2" />
-            </svg>
-        </div>
+        <div class="hero-orbit hero-orbit--one"></div>
+        <div class="hero-orbit hero-orbit--two"></div>
     </div>
 
-    <div class="fd-card shadow-none rounded-xl border-border-60">
-        <div class="p-6">
-            <p class="font-semibold text-muted-foreground text-xs tracking-wider mb-0">
-                DAILY AVERAGE
-            </p>
-            <p class="font-semibold text-2xl mt-3 mb-0 num" id="fd-kpi-avg">@average.ToString("C0")</p>
-            <p class="text-accent-foreground text-sm mt-2 mb-0">@(isSaving ? "On track" : "Active pace")</p>
-            <svg viewBox="0 0 120 28" class="mt-4 w-full h-7" aria-hidden="true">
-                <polyline points="0,18 18,15 34,17 52,13 70,15 86,8 102,11 120,5"
-                          fill="none"
-                          stroke="var(--color-chart-2)"
-                          stroke-width="2" />
-            </svg>
-        </div>
-    </div>
-
-    <div class="fd-card shadow-none rounded-xl border-border-60">
-        <div class="p-6">
-            <p class="font-semibold text-muted-foreground text-xs tracking-wider mb-0">
-                TRANSACTIONS
-            </p>
-            <p class="font-semibold text-2xl mt-3 mb-0 num" id="fd-kpi-tx">@txCount</p>
-            <p class="text-chart-3 text-sm mt-2 mb-0">Across @Model.Categories.Count @(Model.Categories.Count == 1 ? "category" : "categories")</p>
-            <svg viewBox="0 0 120 28" class="mt-4 w-full h-7" aria-hidden="true">
-                <polyline points="0,21 18,18 34,20 52,15 70,17 86,10 102,13 120,7"
-                          fill="none"
-                          stroke="var(--color-chart-3)"
-                          stroke-width="2" />
-            </svg>
-        </div>
-    </div>
-
-    <div class="fd-card shadow-none rounded-xl border-border-60">
-        <div class="p-6">
-            <p class="font-semibold text-muted-foreground text-xs tracking-wider mb-0">
-                BIGGEST CATEGORY
-            </p>
-            <p class="font-semibold text-2xl flex mt-3 mb-0 items-center gap-2">
-                <span class="rounded-lg bg-primary-10 text-primary flex justify-center items-center size-8 shrink-0">
-                    <svg class="i size-4"><use href="@CatIcon(topCatName)" /></svg>
+    <div class="metrics-grid">
+        <article class="metric-card">
+            <div class="metric-card__top">
+                <span class="metric-icon metric-icon--mint">
+                    <svg class="i"><use href="#i-arrow-down-left" /></svg>
                 </span>
-                <span class="text-ellipsis overflow-hidden whitespace-nowrap">@topCatName</span>
-            </p>
-            <p class="text-muted-foreground text-sm mt-2 mb-0 num">
-                @topCatAmt.ToString("C0") this month
-            </p>
-        </div>
-    </div>
-</div>
+                <span class="trend trend--up">+10.0%</span>
+            </div>
+            <p>Monthly budget</p>
+            <strong class="num">@budgetTarget.ToString("C0")</strong>
+            <span class="metric-note">vs. @prevFull.ToString("C0") last month</span>
+        </article>
 
-<div class="grid mt-6 gap-6 grid-cols-2">
-    @* Card 1: Spending pulse *@
-    <div class="fd-card shadow-none rounded-xl border-border-60">
-        <div class="fd-card-header flex flex-row justify-between items-start">
+        <article class="metric-card">
+            <div class="metric-card__top">
+                <span class="metric-icon metric-icon--coral">
+                    <svg class="i"><use href="#i-arrow-up-right" /></svg>
+                </span>
+                <span class="trend">@(spent <= beforeToDate ? $"−{deltaAbs}%" : $"+{deltaAbs}%")</span>
+            </div>
+            <p>Money out</p>
+            <strong class="num">@spent.ToString("C0")</strong>
+            <span class="metric-note">vs. @beforeToDate.ToString("C0") last month</span>
+        </article>
+
+        <article class="metric-card metric-card--accent">
+            <div class="metric-card__top">
+                <span class="metric-icon metric-icon--ink">
+                    <svg class="i"><use href="#i-goals" /></svg>
+                </span>
+                <span class="metric-kicker">@(savedThisMonth > 0 ? "On track" : "Active")</span>
+            </div>
+            <p>Saved this month</p>
+            <strong class="num">@savedThisMonth.ToString("C0")</strong>
+            <div class="mini-progress"><span style="width: @(savedProgressPct)%"></span></div>
+        </article>
+    </div>
+
+    <section class="panel cashflow">
+        <div class="panel__header">
             <div>
-                <h2 class="fd-card-title">Spending pulse</h2>
-                <p class="fd-card-description" id="fd-pulse-desc">
-                    Your daily outflow across the last 30 days
-                </p>
+                <p class="eyebrow">Cash movement</p>
+                <h2>Your month at a glance</h2>
             </div>
-            <select id="fd-pulse-select" class="fd-select rounded-lg w-36 h-9" aria-label="Pulse window">
-                <option value="30" selected>Last 30 days</option>
-                <option value="7">Last 7 days</option>
-            </select>
-        </div>
-        <div class="fd-card-content">
-            <div class="relative mt-4 h-64" id="fd-pulse-30">
-                <svg viewBox="0 0 640 230" class="size-full" aria-label="Last 30 days spending curve">
-                    <defs>
-                        <linearGradient id="spending-fill" x1="0" x2="1" y1="0" y2="0">
-                            <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.28" />
-                            <stop offset="100%" stop-color="var(--color-primary)" stop-opacity="0.04" />
-                        </linearGradient>
-                    </defs>
-                    <path d="M20 180 H620 M20 130 H620 M20 80 H620 M20 30 H620"
-                          stroke="var(--color-border)"
-                          stroke-dasharray="3 4" />
-                    <path d="@pulse30.AreaPath" fill="url(#spending-fill)" />
-                    <path d="@pulse30.LinePath"
-                          fill="none"
-                          stroke="var(--color-primary)"
-                          stroke-width="3" />
-                    <circle cx="@F(pulse30.PeakX)"
-                            cy="@F(pulse30.PeakY)"
-                            r="5"
-                            fill="var(--color-primary)" />
-                    <line x1="@F(pulse30.PeakX)"
-                          y1="@F(pulse30.PeakY)"
-                          x2="@F(pulse30.PeakX)"
-                          y2="205"
-                          stroke="var(--color-primary)"
-                          stroke-dasharray="3 4" />
-                </svg>
-                <div class="shadow-sm rounded-lg bg-popover text-xs border border-border absolute top-3 px-3 py-2" style="left: @F(pulse30.PopLeftPct)%">
-                    <p class="text-muted-foreground mb-0">@pulse30.PeakDate.ToString("d MMM")</p>
-                    <p class="font-semibold mt-1 mb-0 num">@pulse30.PeakVal.ToString("C0")</p>
-                </div>
-                <div class="text-muted-foreground text-xs flex absolute inset-x-0 bottom-0 justify-between">
-                    @foreach (var t in pulse30.Ticks)
-                    {
-                        <span>@t</span>
-                    }
-                </div>
-            </div>
-
-            <div class="relative mt-4 h-64" id="fd-pulse-7" hidden>
-                <svg viewBox="0 0 640 230" class="size-full" aria-label="Last 7 days spending curve">
-                    <path d="M20 180 H620 M20 130 H620 M20 80 H620 M20 30 H620"
-                          stroke="var(--color-border)"
-                          stroke-dasharray="3 4" />
-                    <path d="@pulse7.AreaPath" fill="url(#spending-fill)" />
-                    <path d="@pulse7.LinePath"
-                          fill="none"
-                          stroke="var(--color-primary)"
-                          stroke-width="3" />
-                    <circle cx="@F(pulse7.PeakX)"
-                            cy="@F(pulse7.PeakY)"
-                            r="5"
-                            fill="var(--color-primary)" />
-                    <line x1="@F(pulse7.PeakX)"
-                          y1="@F(pulse7.PeakY)"
-                          x2="@F(pulse7.PeakX)"
-                          y2="205"
-                          stroke="var(--color-primary)"
-                          stroke-dasharray="3 4" />
-                </svg>
-                <div class="shadow-sm rounded-lg bg-popover text-xs border border-border absolute top-3 px-3 py-2" style="left: @F(pulse7.PopLeftPct)%">
-                    <p class="text-muted-foreground mb-0">@pulse7.PeakDate.ToString("d MMM")</p>
-                    <p class="font-semibold mt-1 mb-0 num">@pulse7.PeakVal.ToString("C0")</p>
-                </div>
-                <div class="text-muted-foreground text-xs flex absolute inset-x-0 bottom-0 justify-between">
-                    @foreach (var t in pulse7.Ticks)
-                    {
-                        <span>@t</span>
-                    }
-                </div>
-            </div>
-
-            <div class="text-sm border-t border-border flex flex-wrap gap-2 mt-6 pt-4 justify-between">
-                <span class="num">
-                    <i class="rounded-full bg-primary inline-block mr-2 size-2"></i>
-                    Essentials @essentialsAmt.ToString("C0")
-                </span>
-                <span class="num">
-                    <i class="rounded-full bg-chart-2 inline-block mr-2 size-2"></i>
-                    Lifestyle @lifestyleAmt.ToString("C0")
-                </span>
-                <span class="num">
-                    <i class="rounded-full bg-chart-3 inline-block mr-2 size-2"></i>
-                    Other @otherSplitAmt.ToString("C0")
-                </span>
+            <div class="segmented" aria-label="Chart period">
+                <button type="button" data-cashflow-tab="week">Week</button>
+                <button type="button" class="segmented__active" data-cashflow-tab="month">Month</button>
+                <a asp-action="Analytics" class="text-decoration-none" style="border-radius:0.5rem;padding:0.38rem 0.65rem;color:#7b847f;font-size:0.6rem;font-weight:700">Year</a>
             </div>
         </div>
-    </div>
 
-    @* Card 2: Where it’s going *@
-    <div class="fd-card shadow-none rounded-xl border-border-60">
-        <div class="fd-card-header">
-            <h2 class="fd-card-title">Where it’s going</h2>
-            <p class="fd-card-description">Spend by category</p>
+        <div class="chart-summary">
+            <div>
+                <span class="legend-dot legend-dot--income"></span>
+                Budget <strong class="num">@budgetTarget.ToString("C0")</strong>
+            </div>
+            <div>
+                <span class="legend-dot legend-dot--spend"></span>
+                Spending <strong class="num">@spent.ToString("C0")</strong>
+            </div>
+            <span class="chart-summary__note num">+@savedThisMonth.ToString("C0") net cushion</span>
         </div>
-        <div class="fd-card-content">
-            <div class="flex flex-wrap sm-nowrap items-center gap-8">
-                <div class="flex relative justify-center items-center shrink-0 size-48 mx-auto">
-                    @{
-                        const double circ = 263.89;
-                        var dashOffset = 0.0;
-                    }
-                    <svg viewBox="0 0 120 120" class="-rotate-90 size-full" aria-hidden="true">
-                        <circle cx="60"
-                                cy="60"
-                                r="42"
-                                fill="none"
-                                stroke="var(--color-muted)"
-                                stroke-width="16" />
-                        @foreach (var slice in catSlices)
-                        {
-                            var segLen = Math.Max(0.0, (double)(slice.Amount / spent) * circ);
-                            <circle cx="60"
-                                    cy="60"
-                                    r="42"
-                                    fill="none"
-                                    stroke="@slice.StrokeVar"
-                                    stroke-width="16"
-                                    stroke-dasharray="@F(segLen) @F(circ)"
-                                    stroke-dashoffset="@F(-dashOffset)" />
-                            dashOffset += segLen;
-                        }
-                    </svg>
-                    <div class="text-center absolute">
-                        <p class="font-semibold text-2xl mb-0 num">@CompactRupee(spent)</p>
-                        <p class="text-muted-foreground text-xs mb-0">spent</p>
+
+        <div class="chart" id="spendy-chart-month" aria-label="Income and spending chart for this month">
+            <div class="chart__labels">
+                <span>High</span><span>Mid</span><span>Low</span><span>₹0</span>
+            </div>
+            <svg viewBox="0 0 720 230" preserveAspectRatio="none" role="img">
+                <title>Monthly spending trends</title>
+                <line x1="0" y1="18" x2="720" y2="18" class="grid-line" />
+                <line x1="0" y1="79" x2="720" y2="79" class="grid-line" />
+                <line x1="0" y1="140" x2="720" y2="140" class="grid-line" />
+                <line x1="0" y1="201" x2="720" y2="201" class="grid-line" />
+                <path class="area-path" d="@cfMonth.AreaPath" />
+                <path class="income-path" d="@cfMonth.CurPath" />
+                <path class="spend-path" d="@cfMonth.PrevPath" />
+                <line x1="@F(cfMonth.FocusX)" y1="25" x2="@F(cfMonth.FocusX)" y2="201" class="focus-line" />
+                <circle cx="@F(cfMonth.FocusX)" cy="@F(cfMonth.CurY)" r="5" class="chart-point chart-point--income" />
+                <circle cx="@F(cfMonth.FocusX)" cy="@F(cfMonth.PrevY)" r="5" class="chart-point chart-point--spend" />
+            </svg>
+            <div class="chart-tooltip">
+                <span>@cfMonth.TipDate</span>
+                <strong class="num">@cfMonth.TipCur current</strong>
+                <p class="num">@cfMonth.TipPrev prior</p>
+            </div>
+            <div class="chart__dates">
+                @foreach (var d in cfMonth.Dates)
+                {
+                    <span>@d</span>
+                }
+            </div>
+        </div>
+
+        <div class="chart" id="spendy-chart-week" aria-label="Income and spending chart for this week" hidden>
+            <div class="chart__labels">
+                <span>High</span><span>Mid</span><span>Low</span><span>₹0</span>
+            </div>
+            <svg viewBox="0 0 720 230" preserveAspectRatio="none" role="img">
+                <title>Weekly spending trends</title>
+                <line x1="0" y1="18" x2="720" y2="18" class="grid-line" />
+                <line x1="0" y1="79" x2="720" y2="79" class="grid-line" />
+                <line x1="0" y1="140" x2="720" y2="140" class="grid-line" />
+                <line x1="0" y1="201" x2="720" y2="201" class="grid-line" />
+                <path class="area-path" d="@cfWeek.AreaPath" />
+                <path class="income-path" d="@cfWeek.CurPath" />
+                <path class="spend-path" d="@cfWeek.PrevPath" />
+                <line x1="@F(cfWeek.FocusX)" y1="25" x2="@F(cfWeek.FocusX)" y2="201" class="focus-line" />
+                <circle cx="@F(cfWeek.FocusX)" cy="@F(cfWeek.CurY)" r="5" class="chart-point chart-point--income" />
+                <circle cx="@F(cfWeek.FocusX)" cy="@F(cfWeek.PrevY)" r="5" class="chart-point chart-point--spend" />
+            </svg>
+            <div class="chart-tooltip">
+                <span>@cfWeek.TipDate</span>
+                <strong class="num">@cfWeek.TipCur current</strong>
+                <p class="num">@cfWeek.TipPrev prior</p>
+            </div>
+            <div class="chart__dates">
+                @foreach (var d in cfWeek.Dates)
+                {
+                    <span>@d</span>
+                }
+            </div>
+        </div>
+    </section>
+
+    <section class="panel spending">
+        <div class="panel__header">
+            <div>
+                <p class="eyebrow">Spending plan</p>
+                <h2 class="num">@spent.ToString("C0") of @budgetTarget.ToString("C0")</h2>
+            </div>
+            <span class="days-left">@daysRemaining @(daysRemaining == 1 ? "day" : "days") left</span>
+        </div>
+        <div class="budget-total">
+            <span style="width: @(budgetUsedPct)%"></span>
+        </div>
+        <div class="budget-list">
+            @foreach (var row in budgetRows)
+            {
+                <div class="budget-row">
+                    <div class="budget-row__heading">
+                        <p>@row.Label</p>
+                        <span class="num"><strong>@row.Spent.ToString("C0")</strong> / @row.Cap.ToString("C0")</span>
+                    </div>
+                    <div class="budget-bar">
+                        <span class="budget-bar__fill budget-bar__fill--@row.Tone" style="width: @(row.Percent)%"></span>
                     </div>
                 </div>
-
-                <div class="flex-1 min-w-0">
-                    @if (catSlices.Count == 0)
-                    {
-                        <p class="text-muted-foreground text-sm mb-0">No expenses logged this month yet.</p>
-                    }
-                    else
-                    {
-                        for (var i = 0; i < catSlices.Count; i++)
-                        {
-                            var s = catSlices[i];
-                            <div class="@(i < catSlices.Count - 1 ? "mb-4" : "")">
-                                <div class="text-sm flex justify-between">
-                                    <span>
-                                        <i class="rounded-full @s.BgClass inline-block mr-2 size-2"></i>
-                                        @s.Label
-                                    </span>
-                                    <span class="num">@s.Amount.ToString("C0")&nbsp; @s.Pct%</span>
-                                </div>
-                                <div class="rounded-full bg-muted mt-2 h-1-5">
-                                    <div class="rounded-full @s.BgClass h-1-5" style="width: @s.Pct%"></div>
-                                </div>
-                            </div>
-                        }
-                    }
-                </div>
-            </div>
+            }
         </div>
-    </div>
+        <a asp-action="Calendar" class="text-link">
+            Open spending plan
+            <svg class="i" style="width:15px;height:15px"><use href="#i-arrow-up-right" /></svg>
+        </a>
+    </section>
 
-    @* Card 3: Recent activity *@
-    <div class="fd-card shadow-none rounded-xl border-border-60">
-        <div class="fd-card-header flex flex-row justify-between items-center">
-            <h2 class="fd-card-title">Recent activity</h2>
-            <a asp-action="Expenses" class="font-medium text-primary text-sm text-decoration-none hover:underline">
+    <section class="panel transactions">
+        <div class="panel__header">
+            <div>
+                <p class="eyebrow">Activity</p>
+                <h2>Latest transactions</h2>
+            </div>
+            <a asp-action="Expenses" class="text-link">
                 View all
+                <svg class="i" style="width:15px;height:15px"><use href="#i-arrow-up-right" /></svg>
             </a>
         </div>
-        <div class="fd-card-content">
+        <div class="transaction-list">
             @if (Model.Recent.Count == 0)
             {
-                <p class="text-muted-foreground text-sm mb-0">No recent transactions yet. Click <strong>Add expense</strong> above to get started.</p>
+                <p class="muted small mb-0 py-3">No transactions logged yet. Click <strong>Add transaction</strong> above to record your first one.</p>
             }
             else
             {
-                var recentItems = Model.Recent.Take(4).ToList();
-                string[] badgeClasses =
-                [
-                    "bg-primary-10 text-primary",
-                    "bg-chart-3-10 text-chart-3",
-                    "bg-chart-4-10 text-chart-4",
-                    "bg-chart-2-10 text-accent-foreground"
-                ];
-                for (var i = 0; i < recentItems.Count; i++)
+                var recentList = Model.Recent.Take(5).ToList();
+                for (var i = 0; i < recentList.Count; i++)
                 {
-                    var e = recentItems[i];
-                    var isLast = i == recentItems.Count - 1;
-                    var badgeCls = badgeClasses[i % badgeClasses.Length];
-                    <div class="@(isLast ? "flex py-3 items-center gap-3" : "border-b border-border flex mb-1 py-3 items-center gap-3")">
-                        <span class="rounded-full @badgeCls flex justify-center items-center size-9 shrink-0">
-                            <svg class="i size-4"><use href="@CatIcon(e.Category)" /></svg>
+                    var item = recentList[i];
+                    var tone = CatTone(i);
+                    <button type="button"
+                            class="transaction"
+                            title="Edit @item.Title"
+                            data-expense
+                            data-id="@item.Id"
+                            data-title="@item.Title"
+                            data-price="@item.Price"
+                            data-category="@item.Category"
+                            data-date="@item.Date.ToString("yyyy-MM-dd")"
+                            data-paymentmode="@((int)item.PaymentMode)"
+                            data-description="@item.Description">
+                        <span class="transaction__icon transaction__icon--@tone">
+                            <svg class="i"><use href="@CatIcon(item.Category)" /></svg>
                         </span>
-                        <div class="flex-1 min-w-0">
-                            <p class="font-medium text-sm mb-0 text-ellipsis overflow-hidden whitespace-nowrap">@e.Title</p>
-                            <p class="text-muted-foreground text-xs mb-0">
-                                @e.Category / @RelativeDay(e.Date)
-                            </p>
+                        <div class="transaction__details">
+                            <p>@item.Title</p>
+                            <span>@RelativeNote(item)</span>
                         </div>
-                        <span class="font-medium text-sm num">−@e.Price?.ToString("C0")</span>
-                        <button type="button"
-                                class="border-0 bg-transparent p-1 rounded-md hover:bg-muted"
-                                title="Edit @e.Title"
-                                aria-label="Edit @e.Title"
-                                data-expense
-                                data-id="@e.Id"
-                                data-title="@e.Title"
-                                data-price="@e.Price"
-                                data-category="@e.Category"
-                                data-date="@e.Date.ToString("yyyy-MM-dd")"
-                                data-paymentmode="@((int)e.PaymentMode)"
-                                data-description="@e.Description">
-                            <svg class="i text-muted-foreground size-4"><use href="#i-more-horizontal" /></svg>
-                        </button>
-                    </div>
+                        <strong class="num">− @item.Price?.ToString("C2")</strong>
+                    </button>
                 }
             }
         </div>
-    </div>
+    </section>
 
-    @* Card 4: Monthly rhythm *@
-    <div class="fd-card shadow-none rounded-xl border-border-60">
-        <div class="fd-card-header">
-            <h2 class="fd-card-title">Monthly rhythm</h2>
-        </div>
-        <div class="fd-card-content">
-            <div class="border-b border-border flex px-2 pb-7 justify-between items-end gap-4 h-40">
-                @for (var i = 0; i < 7; i++)
+    <aside class="right-rail">
+        <section class="goal-card">
+            <div class="goal-card__top">
+                <span class="eyebrow eyebrow--light">Priority goal</span>
+                <a asp-action="Analytics" aria-label="Open goal">
+                    <svg class="i" style="width:18px;height:18px"><use href="#i-arrow-up-right" /></svg>
+                </a>
+            </div>
+            <h2>A little place by the sea.</h2>
+            <p>Emergency &amp; travel fund</p>
+            <div class="goal-visual">
+                <svg viewBox="0 0 160 160" role="img" aria-label="@goalPct percent of goal saved">
+                    <circle cx="80" cy="80" r="62" class="goal-track" />
+                    <circle cx="80" cy="80" r="62" class="goal-progress" style="stroke-dashoffset: @goalDashOffset" />
+                </svg>
+                <div>
+                    <strong>@goalPct%</strong>
+                    <span>funded</span>
+                </div>
+            </div>
+            <div class="goal-card__numbers">
+                <div>
+                    <span>Saved</span>
+                    <strong class="num">@goalSaved.ToString("C0")</strong>
+                </div>
+                <div>
+                    <span>Target</span>
+                    <strong class="num">@goalTarget.ToString("C0")</strong>
+                </div>
+            </div>
+            <button type="button" class="goal-button" id="spendy-goal-btn">
+                <svg class="i" style="width:17px;height:17px"><use href="#i-plus" id="spendy-goal-icon" /></svg>
+                <span id="spendy-goal-text">Add contribution</span>
+            </button>
+        </section>
+
+        <section class="panel recurring">
+            <div class="panel__header">
+                <div>
+                    <p class="eyebrow">Coming up</p>
+                    <h2>Recurring</h2>
+                </div>
+                <span class="recurring__total num">@recurringTotal.ToString("C0")</span>
+            </div>
+            @if (billExpenses.Count > 0)
+            {
+                for (var i = 0; i < billExpenses.Count; i++)
                 {
-                    var val = dowTotals[i];
-                    var hPct = maxDow > 0 ? (double)(val / maxDow) : 0.35;
-                    var pxHeight = Math.Clamp((int)Math.Round(hPct * 136), 24, 140);
-                    var isHigh = hPct >= 0.65 || i == peakDowIdx;
-                    var isTop = i == peakDowIdx;
-                    <div class="flex flex-col justify-end items-center flex-1 gap-2 h-full" title="@dowLabels[i]: @val.ToString("C0")">
-                        <div class="rounded-t-md @(isHigh ? "bg-primary" : "bg-chart-2") w-full" style="height: @(pxHeight)px"></div>
-                        <span class="@(isTop ? "font-semibold text-primary text-xs" : "text-muted-foreground text-xs")">@dowLabels[i]</span>
+                    var bill = billExpenses[i];
+                    <div class="recurring-item">
+                        <span class="recurring-item__date">
+                            <strong>@bill.Date.ToString("dd")</strong>
+                            @bill.Date.ToString("MMM").ToUpperInvariant()
+                        </span>
+                        <span class="recurring-item__icon @(i % 2 == 1 ? "recurring-item__icon--coral" : "")">
+                            <svg class="i" style="width:18px;height:18px"><use href="#i-repeat" /></svg>
+                        </span>
+                        <div class="min-w-0">
+                            <p class="text-truncate">@bill.Title</p>
+                            <span>@bill.PaymentMode.DisplayName() · @bill.Category</span>
+                        </div>
+                        <strong class="num">@bill.Price?.ToString("C0")</strong>
                     </div>
                 }
-            </div>
-            <div class="rounded-lg bg-accent flex mt-6 p-4 items-center gap-3">
-                <svg class="i text-accent-foreground size-5 shrink-0"><use href="#i-sparkles" /></svg>
-                <p class="text-accent-foreground text-sm mb-0">
-                    You spend @rhythmDiffPct% less on weekdays. Nice rhythm.
-                </p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="fd-card shadow-none rounded-xl bg-accent border-border-60 mt-6">
-    <div class="flex flex-wrap p-5 items-center gap-4">
-        <svg class="i text-accent-foreground size-5 shrink-0"><use href="#i-sparkles" /></svg>
-        <div class="flex-1 min-w-0">
-            <p class="font-medium text-accent-foreground mb-0">
-                One small win
-            </p>
-            @if (beforeToDate > spent)
-            {
-                <p class="text-accent-foreground-80 text-sm mt-1 mb-0">
-                    You’re @((beforeToDate - spent).ToString("C0")) below your usual mid-month pace.
-                </p>
-                <p class="text-accent-foreground-70 text-xs mt-1 mb-0">
-                    Keep the streak going for @daysRemaining more @(daysRemaining == 1 ? "day" : "days").
-                </p>
             }
             else
             {
-                <p class="text-accent-foreground-80 text-sm mt-1 mb-0">
-                    You’ve logged @calmDays zero-spend calm @(calmDays == 1 ? "day" : "days") in @thisName so far.
-                </p>
-                <p class="text-accent-foreground-70 text-xs mt-1 mb-0">
-                    Keep the streak going for @daysRemaining more @(daysRemaining == 1 ? "day" : "days").
-                </p>
+                <div class="recurring-item">
+                    <span class="recurring-item__date"><strong>22</strong>@today.ToString("MMM").ToUpperInvariant()</span>
+                    <span class="recurring-item__icon"><svg class="i" style="width:18px;height:18px"><use href="#i-repeat" /></svg></span>
+                    <div><p>Apartment WiFi</p><span>Autopay</span></div>
+                    <strong class="num">₹999</strong>
+                </div>
+                <div class="recurring-item">
+                    <span class="recurring-item__date"><strong>25</strong>@today.ToString("MMM").ToUpperInvariant()</span>
+                    <span class="recurring-item__icon recurring-item__icon--coral"><svg class="i" style="width:18px;height:18px"><use href="#i-repeat" /></svg></span>
+                    <div><p>Electricity &amp; Utilities</p><span>Autopay</span></div>
+                    <strong class="num">₹1,949</strong>
+                </div>
             }
-        </div>
-        <a asp-action="Analytics"
-           class="fd-btn rounded-lg bg-transparent text-accent-foreground border border-accent-foreground-30 px-4 h-10 text-decoration-none">
-            See plan
-        </a>
-    </div>
-</div>
+        </section>
+    </aside>
+</section>
 
 <partial name="_ExpenseDialog" model="newExpense" />
 

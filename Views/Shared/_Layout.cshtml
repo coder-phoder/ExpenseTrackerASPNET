@@ -5,16 +5,20 @@
     var action = ViewContext.RouteData.Values["action"] as string;
     var current = action == "Statement" ? "Calendar" : action;
     var name = User.Identity?.Name ?? "Krish Parikh";
-    var email = User.FindFirstValue(ClaimTypes.Email) ?? $"{name.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.ToLowerInvariant() ?? "user"}@example.com";
+    var firstName = name.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "Krish";
     var initials = string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpperInvariant(w[0])));
     if (string.IsNullOrEmpty(initials)) initials = "KP";
 
-    (string Action, string Label, string Icon)[] overviewLinks = isUser
+    var hour = DateTime.Now.Hour;
+    var greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+    var todayIso = DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd");
+
+    (string Action, string Label, string Icon)[] navItems = isUser
         ? [
-            ("Dashboard", "Overview", "layout-dashboard"),
-            ("Expenses", "Transactions", "receipt"),
-            ("Calendar", "Calendar", "calendar-days"),
-            ("Analytics", "Insights", "lightbulb")
+            ("Dashboard", "Overview", "overview"),
+            ("Expenses", "Transactions", "transactions"),
+            ("Calendar", "Spending plan", "budget"),
+            ("Analytics", "Goals", "goals")
         ]
         : [];
 }
@@ -23,181 +27,166 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] — Lumen ExpenseTracker</title>
+    <title>@ViewData["Title"] — Spendy</title>
     <script type="importmap"></script>
     <partial name="_Theme" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400..700&amp;family=Inter:wght@400;500;600;700&amp;family=Source+Serif+4:ital,opsz,wght@0,8..60,400..600;1,8..60,400..600&amp;display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&amp;family=Geist+Mono:wght@400..700&amp;family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/ExpenseTracker.styles.css" asp-append-version="true" />
 </head>
 <body>
     <svg class="position-absolute" width="0" height="0" aria-hidden="true">
-        <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" /><path d="M20 3v4M22 5h-4M4 17v2M5 18H3" /></symbol>
-        <symbol id="i-layout-dashboard" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1" /><rect width="7" height="5" x="14" y="3" rx="1" /><rect width="7" height="9" x="14" y="12" rx="1" /><rect width="7" height="5" x="3" y="16" rx="1" /></symbol>
-        <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" /><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" /><path d="M12 17.5v-11" /></symbol>
-        <symbol id="i-calendar-days" viewBox="0 0 24 24"><path d="M8 2v4M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01" /></symbol>
-        <symbol id="i-lightbulb" viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5" /><path d="M9 18h6M10 22h4" /></symbol>
-        <symbol id="i-tags" viewBox="0 0 24 24"><path d="m15 5 6.3 6.3a2.4 2.4 0 0 1 0 3.4L17 19" /><path d="M9.586 5.586A2 2 0 0 0 8.172 5H3a1 1 0 0 0-1 1v5.172a2 2 0 0 0 .586 1.414L8.29 18.29a2.426 2.426 0 0 0 3.42 0l3.58-3.58a2.426 2.426 0 0 0 0-3.42z" /><circle cx="6.5" cy="9.5" r=".5" fill="currentColor" /></symbol>
-        <symbol id="i-credit-card" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" x2="22" y1="10" y2="10" /></symbol>
-        <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></symbol>
-        <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></symbol>
-        <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></symbol>
-        <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></symbol>
-        <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14" /></symbol>
-        <symbol id="i-arrow-down-right" viewBox="0 0 24 24"><path d="m7 7 10 10M17 7v10H7" /></symbol>
-        <symbol id="i-arrow-up-right" viewBox="0 0 24 24"><path d="M7 7h10v10M7 17 17 7" /></symbol>
-        <symbol id="i-utensils" viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" /></symbol>
-        <symbol id="i-train-front" viewBox="0 0 24 24"><path d="M8 3.1V7a4 4 0 0 0 8 0V3.1" /><path d="m9 15-1-1" /><path d="m15 15 1-1" /><path d="M9 19c-2.8 0-5-2.2-5-5v-4a8 8 0 0 1 16 0v4c0 2.8-2.2 5-5 5Z" /><path d="m8 19-2 3" /><path d="m16 19 2 3" /></symbol>
-        <symbol id="i-zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" /></symbol>
-        <symbol id="i-lamp-desk" viewBox="0 0 24 24"><path d="m14 5-3 3 2 7 8-8-7-2Z" /><path d="m14 5-3 3-3-3 3-3 3 3Z" /><path d="M9.5 6.5 4 12l3 6" /><path d="M3 22v-2c0-1.1.9-2 2-2h4a2 2 0 0 1 2 2v2H3Z" /></symbol>
-        <symbol id="i-more-horizontal" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></symbol>
-        <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z" /></symbol>
-        <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" /></symbol>
-        <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2.5" /><path d="M4 10h16M8.5 3v4M15.5 3v4" /></symbol>
-        <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20h16M7 16v-4M12 16V7M17 16v-6" /></symbol>
-        <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5" /><path d="M5 20a7 7 0 0 1 14 0" /></symbol>
-        <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h4M15 16l4-4-4-4M19 12H9" /></symbol>
+        <symbol id="i-overview" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2" /><rect x="14" y="3" width="7" height="7" rx="2" /><rect x="3" y="14" width="7" height="7" rx="2" /><rect x="14" y="14" width="7" height="7" rx="2" /></symbol>
+        <symbol id="i-transactions" viewBox="0 0 24 24"><path d="M7 7h11l-3-3" /><path d="m18 7-3 3" /><path d="M17 17H6l3 3" /><path d="m6 17 3-3" /></symbol>
+        <symbol id="i-budget" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" /><path d="M8 8h8M8 12h2m4 0h2M8 16h2m4 0h2" /></symbol>
+        <symbol id="i-goals" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></symbol>
+        <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.1A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.6-1H3v-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3h4a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.6 1h.1v4H21a1.7 1.7 0 0 0-1.6 1Z" /></symbol>
+        <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></symbol>
+        <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+        <symbol id="i-arrow-up-right" viewBox="0 0 24 24"><path d="M7 17 17 7" /><path d="M7 7h10v10" /></symbol>
+        <symbol id="i-arrow-down-left" viewBox="0 0 24 24"><path d="M17 7 7 17" /><path d="M17 17H7V7" /></symbol>
+        <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" /><circle cx="12" cy="12" r="2.5" /></symbol>
+        <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="m3 3 18 18" /><path d="M10.6 6.2A9.7 9.7 0 0 1 12 6c6.5 0 10 6 10 6a16 16 0 0 1-2.1 2.8M6.6 6.6C3.5 8.4 2 12 2 12s3.5 6 10 6c1.6 0 3-.4 4.2-1" /></symbol>
+        <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+        <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13H6a2 2 0 0 1-2-2Z" /><path d="M16 10h6v5h-6a2.5 2.5 0 0 1 0-5Z" /></symbol>
+        <symbol id="i-card" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M3 10h18M7 15h3" /></symbol>
+        <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8" /><path d="M5 10v10h14V10M9 20v-6h6v6" /></symbol>
+        <symbol id="i-coffee" viewBox="0 0 24 24"><path d="M4 9h13v5a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6Z" /><path d="M17 11h1a3 3 0 0 1 0 6h-2M8 5v1m4-1v1" /></symbol>
+        <symbol id="i-car" viewBox="0 0 24 24"><path d="m5 16-1-1v-4l2-5h12l2 5v4l-1 1" /><path d="M5 16v3h3v-3m8 0v3h3v-3M4 11h16M7 14h.01M17 14h.01" /></symbol>
+        <symbol id="i-shopping" viewBox="0 0 24 24"><path d="M5 8h14l-1 13H6Z" /><path d="M9 10V6a3 3 0 0 1 6 0v4" /></symbol>
+        <symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M9 7V4h6v3M3 12h18M10 12v2h4v-2" /></symbol>
+        <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4" /><path d="M3 11V9a3 3 0 0 1 3-3h15" /><path d="m7 22-4-4 4-4" /><path d="M21 13v2a3 3 0 0 1-3 3H3" /></symbol>
+        <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></symbol>
+        <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></symbol>
         <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></symbol>
+        <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></symbol>
+        <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4" /></symbol>
         <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17zM13.5 8.5l2 2" /></symbol>
         <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14M10 7V4.5h4V7M7 7l.8 12.2a1 1 0 0 0 1 .8h6.4a1 1 0 0 0 1-.8L17 7" /></symbol>
-        <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4" /></symbol>
-        <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></symbol>
-        <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h4" /></symbol>
+        <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h4M15 16l4-4-4-4M19 12H9" /></symbol>
+        <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" /><path d="M20 3v4M22 5h-4M4 17v2M5 18H3" /></symbol>
+        <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" /><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" /><path d="M12 17.5v-11" /></symbol>
+        <symbol id="i-zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" /></symbol>
     </svg>
 
-    <div class="fd-shell bg-background text-foreground">
+    <div class="app-shell">
         @if (isUser)
         {
-            <aside class="fd-sidebar bg-sidebar text-sidebar-foreground d-print-none">
-                <a asp-controller="User" asp-action="Dashboard" class="flex items-center gap-2 text-decoration-none text-sidebar-foreground">
-                    <div class="rounded-full bg-primary text-primary-foreground flex justify-center items-center size-8">
-                        <svg class="i size-4"><use href="#i-sparkles" /></svg>
-                    </div>
-                    <span class="font-semibold text-lg">Lumen</span>
+            <aside class="sidebar d-print-none" id="spendy-sidebar">
+                <a asp-controller="User" asp-action="Dashboard" class="brand">
+                    <div class="brand__mark"><span></span><span></span><span></span></div>
+                    <span class="brand__name">Spendy</span>
                 </a>
 
-                <select class="fd-sidebar-select bg-sidebar-accent text-sidebar-accent-foreground border-sidebar-border mt-8 h-10" aria-label="Workspace">
-                    <option value="Personal" selected>Personal</option>
-                    <option value="Business">Business</option>
-                </select>
-
-                <nav class="flex mt-8 flex-col gap-2" aria-label="Overview">
-                    <span class="font-semibold uppercase text-sidebar-foreground-60 text-xs tracking-wider px-3">
-                        Overview
-                    </span>
-                    @foreach (var l in overviewLinks)
+                <nav class="sidebar__nav" aria-label="Main navigation">
+                    <p class="eyebrow sidebar__label">Workspace</p>
+                    @foreach (var item in navItems)
                     {
-                        var active = l.Action == current;
-                        <a asp-controller="User" asp-action="@l.Action"
-                           class="@(active ? "font-medium rounded-lg bg-primary text-primary-foreground text-sm flex px-3 py-2.5 items-center gap-3 text-decoration-none" : "rounded-lg text-sidebar-foreground-75 text-sm flex px-3 py-2.5 items-center gap-3 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-decoration-none")"
+                        var active = item.Action == current;
+                        <a asp-controller="User" asp-action="@item.Action"
+                           class="nav-item @(active ? "nav-item--active" : "")"
                            aria-current="@(active ? "page" : null)">
-                            <svg class="i size-4"><use href="#i-@l.Icon" /></svg>
-                            <span>@l.Label</span>
+                            <svg class="i"><use href="#i-@item.Icon" /></svg>
+                            <span>@item.Label</span>
                         </a>
                     }
-                </nav>
-
-                <div class="border-t border-sidebar-border my-8"></div>
-
-                <nav class="flex flex-col gap-2" aria-label="Tools">
-                    <span class="font-semibold uppercase text-sidebar-foreground-60 text-xs tracking-wider px-3">
-                        Tools
-                    </span>
-                    <a asp-controller="User" asp-action="Expenses" class="rounded-lg text-sidebar-foreground-75 text-sm flex px-3 py-2.5 items-center gap-3 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-decoration-none">
-                        <svg class="i size-4"><use href="#i-tags" /></svg>
-                        <span>Categories</span>
-                    </a>
-                    <a asp-controller="User" asp-action="Analytics" class="rounded-lg text-sidebar-foreground-75 text-sm flex px-3 py-2.5 items-center gap-3 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-decoration-none">
-                        <svg class="i size-4"><use href="#i-credit-card" /></svg>
-                        <span>Payment methods</span>
-                    </a>
-                    <a asp-controller="User" asp-action="ExportCsv" class="rounded-lg text-sidebar-foreground-75 text-sm flex px-3 py-2.5 items-center gap-3 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-decoration-none">
-                        <svg class="i size-4"><use href="#i-download" /></svg>
-                        <span>Export data</span>
+                    <a asp-controller="User" asp-action="ExportCsv" class="nav-item">
+                        <svg class="i"><use href="#i-download" /></svg>
+                        <span>Export CSV</span>
                     </a>
                 </nav>
 
-                <div class="border-t border-sidebar-border flex mt-auto pt-6 items-center gap-3">
-                    <a asp-controller="User" asp-action="Profile" class="font-semibold rounded-full bg-sidebar-primary text-sidebar-primary-foreground text-sm flex justify-center items-center size-10 text-decoration-none shrink-0">
-                        @initials
-                    </a>
-                    <div class="flex-1 min-w-0">
-                        <p class="font-medium text-ellipsis whitespace-nowrap text-sm overflow-hidden mb-0">
-                            @name
-                        </p>
-                        <p class="text-ellipsis whitespace-nowrap text-sidebar-foreground-60 text-xs overflow-hidden mb-0">
-                            @email
-                        </p>
+                <div class="sidebar__bottom">
+                    <div class="insight-card">
+                        <span class="insight-card__icon">
+                            <svg class="i" style="width:18px;height:18px"><use href="#i-goals" /></svg>
+                        </span>
+                        <p class="insight-card__title">@DateTime.Today.ToString("MMMM") insight</p>
+                        <p class="insight-card__copy">Your spending rhythm and goals are synced in real time.</p>
+                        <a asp-controller="User" asp-action="Analytics" class="insight-card__link">
+                            See your progress
+                            <svg class="i" style="width:15px;height:15px"><use href="#i-arrow-up-right" /></svg>
+                        </a>
                     </div>
-                    <a asp-controller="User" asp-action="Profile" class="rounded-lg text-sidebar-foreground-70 flex justify-center items-center size-8 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-decoration-none" title="Settings &amp; Profile" aria-label="Settings">
-                        <svg class="i size-4"><use href="#i-settings" /></svg>
+
+                    <a asp-controller="User" asp-action="Profile"
+                       class="nav-item @(current == "Profile" ? "nav-item--active" : "")">
+                        <svg class="i"><use href="#i-settings" /></svg>
+                        <span>Settings</span>
                     </a>
-                    <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline m-0">
-                        <button type="submit" class="rounded-lg text-sidebar-foreground-70 flex justify-center items-center size-8 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border-0 bg-transparent" title="Logout" aria-label="Logout">
-                            <svg class="i size-4"><use href="#i-logout" /></svg>
-                        </button>
-                    </form>
+
+                    <div class="profile">
+                        <a asp-controller="User" asp-action="Profile" class="avatar" title="Profile (@name)">@initials</a>
+                        <div class="min-w-0">
+                            <p>@name</p>
+                            <span>Personal account</span>
+                        </div>
+                        <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">
+                            <button type="submit" class="icon-btn" title="Logout" aria-label="Logout">
+                                <svg class="i" style="width:16px;height:16px"><use href="#i-logout" /></svg>
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </aside>
+
+            <button type="button" class="scrim d-print-none" id="spendy-scrim" aria-label="Close navigation" hidden></button>
         }
 
-        <main class="fd-main px-8 py-6 flex-1 min-w-0">
+        <main class="main">
             @if (isUser)
             {
-                <div class="border-b border-border-60 flex pb-6 justify-between items-center d-print-none">
-                    <p class="text-muted-foreground text-sm mb-0">
-                        Personal<span class="px-2">/</span>@(ViewData["Title"] ?? "Overview")
-                    </p>
-                    <div class="flex items-center gap-3">
-                        <form asp-controller="User" asp-action="Expenses" method="get" class="relative m-0">
-                            <svg class="i -translate-y-1-2 text-muted-foreground absolute top-1-2 left-3 size-4 pointer-events-none"><use href="#i-search" /></svg>
+                <header class="topbar d-print-none">
+                    <div class="topbar__mobile-brand">
+                        <button type="button" class="button button--icon" id="spendy-menu-btn" aria-label="Open navigation">
+                            <svg class="i"><use href="#i-menu" /></svg>
+                        </button>
+                        <span class="brand__name">Spendy</span>
+                    </div>
+                    <div class="topbar__title">
+                        <p class="eyebrow">@DateTime.Today.ToString("dddd, MMMM d")</p>
+                        <h1>@(current == "Dashboard" ? $"{greeting}, {firstName}." : (ViewData["Title"] ?? "Overview"))</h1>
+                    </div>
+                    <div class="topbar__actions">
+                        <form asp-controller="User" asp-action="Expenses" method="get" class="topbar__search m-0">
+                            <svg class="i" style="width:16px;height:16px"><use href="#i-search" /></svg>
                             <input type="search"
                                    name="q"
                                    id="fd-global-search"
-                                   placeholder="Search anything"
+                                   placeholder="Search transactions (⌘K)"
                                    value="@Context.Request.Query["q"]"
-                                   class="fd-input bg-card border-border pr-16 pl-9 w-64 h-10" />
-                            <span class="font-mono -translate-y-1-2 rounded-md bg-muted text-muted-foreground text-xs absolute top-1-2 right-2 px-2 py-1 pointer-events-none">
-                                ⌘ K
-                            </span>
+                                   aria-label="Search transactions" />
                         </form>
-                        <partial name="_ThemeToggle" model='"rounded-lg bg-card text-muted-foreground border border-border flex justify-center items-center size-10 hover:bg-accent hover:text-accent-foreground theme-icon"' />
-                        <a asp-controller="User" asp-action="Analytics" class="rounded-lg bg-card text-muted-foreground border border-border flex relative justify-center items-center size-10 hover:bg-accent hover:text-accent-foreground text-decoration-none" title="Insights &amp; Notifications" aria-label="Notifications">
-                            <svg class="i size-4"><use href="#i-bell" /></svg>
-                            <span class="rounded-full bg-primary absolute top-2 right-2 size-2"></span>
+                        <partial name="_ThemeToggle" model='"button button--icon theme-icon"' />
+                        <a asp-controller="User" asp-action="Analytics" class="button button--icon notification-button" aria-label="Notifications" title="Insights &amp; Goals">
+                            <svg class="i"><use href="#i-bell" /></svg>
+                            <span class="notification-dot"></span>
                         </a>
-                        <a asp-controller="User" asp-action="Profile" class="font-semibold rounded-full bg-primary text-primary-foreground text-sm flex justify-center items-center size-10 text-decoration-none" title="Profile (@name)">
-                            @initials
-                        </a>
+                        <button type="button"
+                                class="button button--primary"
+                                data-expense data-id="0" data-date="@todayIso" data-paymentmode="0">
+                            <svg class="i" style="width:18px;height:18px"><use href="#i-plus" /></svg>
+                            <span>Add transaction</span>
+                        </button>
                     </div>
-                </div>
+                </header>
             }
 
-            <div class="page">
+            @if (current == "Dashboard")
+            {
                 @RenderBody()
-            </div>
+            }
+            else
+            {
+                <div class="page-content">
+                    @RenderBody()
+                </div>
+            }
         </main>
-
-        @if (overviewLinks.Length > 0)
-        {
-            <nav class="mob-dock d-lg-none d-print-none" aria-label="Mobile navigation">
-                @foreach (var l in overviewLinks)
-                {
-                    var active = l.Action == current;
-                    <a class="mob-dock__link" asp-controller="User" asp-action="@l.Action" aria-current="@(active ? "page" : null)">
-                        @if (active)
-                        {
-                            <i class="mob-pill" aria-hidden="true"></i>
-                        }
-                        <svg class="i"><use href="#i-@l.Icon" /></svg>
-                        <span>@l.Label</span>
-                    </a>
-                }
-            </nav>
-        }
     </div>
 
     @if (TempData["Success"] is string success)

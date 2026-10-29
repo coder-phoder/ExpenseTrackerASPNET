@@ -1,25 +1,26 @@
 @model ExpensesViewModel
 
 <input type="hidden" asp-for="Expense.Id" />
-<div class="row g-3">
-    <div class="col-12">
-        <label asp-for="Expense.Title" class="form-label"></label>
-        <input asp-for="Expense.Title" class="form-control" placeholder="e.g. Groceries" />
-        <span asp-validation-for="Expense.Title" class="text-danger small"></span>
+
+<label class="field">
+    <span>Amount</span>
+    <div class="amount-input">
+        <span>₹</span>
+        <input asp-for="Expense.Price" class="num" inputmode="decimal" placeholder="0.00" />
     </div>
-    <div class="col-sm-6">
-        <label asp-for="Expense.Price" class="form-label"></label>
-        <input asp-for="Expense.Price" class="form-control num" inputmode="decimal" placeholder="0.00" />
-        <span asp-validation-for="Expense.Price" class="text-danger small"></span>
-    </div>
-    <div class="col-sm-6">
-        <label asp-for="Expense.Date" class="form-label"></label>
-        <input asp-for="Expense.Date" class="form-control" />
-        <span asp-validation-for="Expense.Date" class="text-danger small"></span>
-    </div>
-    <div class="col-sm-6">
-        <label asp-for="Expense.Category" class="form-label"></label>
-        <input asp-for="Expense.Category" class="form-control" list="categoryList" autocomplete="off" placeholder="Pick or type one" />
+    <span asp-validation-for="Expense.Price" class="text-danger small"></span>
+</label>
+
+<label class="field">
+    <span>Title</span>
+    <input asp-for="Expense.Title" placeholder="e.g. Morning Brew, Groceries" />
+    <span asp-validation-for="Expense.Title" class="text-danger small"></span>
+</label>
+
+<div class="form-row">
+    <label class="field">
+        <span>Category</span>
+        <input asp-for="Expense.Category" list="categoryList" autocomplete="off" placeholder="Living, Home, Food..." />
         <datalist id="categoryList">
             @foreach (var c in Model.Categories)
             {
@@ -27,14 +28,24 @@
             }
         </datalist>
         <span asp-validation-for="Expense.Category" class="text-danger small"></span>
-    </div>
-    <div class="col-sm-6">
-        <label asp-for="Expense.PaymentMode" class="form-label"></label>
-        <select asp-for="Expense.PaymentMode" asp-items="Html.GetEnumSelectList<PaymentMode>()" class="form-select"></select>
-    </div>
-    <div class="col-12">
-        <label asp-for="Expense.Description" class="form-label"></label>
-        <textarea asp-for="Expense.Description" class="form-control" rows="2" placeholder="Optional"></textarea>
+    </label>
+
+    <label class="field">
+        <span>Payment Mode</span>
+        <select asp-for="Expense.PaymentMode" asp-items="Html.GetEnumSelectList<PaymentMode>()"></select>
+    </label>
+</div>
+
+<div class="form-row">
+    <label class="field">
+        <span>Date</span>
+        <input asp-for="Expense.Date" />
+        <span asp-validation-for="Expense.Date" class="text-danger small"></span>
+    </label>
+
+    <label class="field">
+        <span>Description</span>
+        <input asp-for="Expense.Description" placeholder="What was this for? (Optional)" />
         <span asp-validation-for="Expense.Description" class="text-danger small"></span>
-    </div>
+    </label>
 </div>

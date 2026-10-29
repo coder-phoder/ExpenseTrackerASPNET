@@ -1,39 +1,52 @@
-/* Lumen Finance-Dashboard Dark Theme (from e717527e-b6f1-47d3-afb7-138726ecb1df.css).
+/* Spendy Dark Theme Adaptation
    _Theme.cshtml sets html[data-bs-theme] before first paint; toggleTheme() flips it. */
 :root[data-bs-theme=dark],
 [data-appearance="dark"] {
   color-scheme: dark;
-  --background: oklch(0.16 0.03 265);
-  --foreground: oklch(0.94 0.018 92);
-  --card: oklch(0.205 0.035 265);
-  --card-foreground: oklch(0.94 0.018 92);
-  --popover: oklch(0.225 0.038 265);
-  --popover-foreground: oklch(0.94 0.018 92);
-  --primary: oklch(0.74 0.16 31);
-  --primary-foreground: oklch(0.15 0.028 265);
-  --secondary: oklch(0.255 0.035 265);
-  --secondary-foreground: oklch(0.9 0.02 92);
-  --muted-bg: oklch(0.25 0.035 265);
-  --muted-foreground: oklch(0.73 0.035 258);
-  --accent-bg: oklch(0.3 0.07 165);
-  --accent-foreground: oklch(0.88 0.1 165);
-  --destructive: oklch(0.68 0.16 25);
-  --border: oklch(1 0 0 / 13%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.74 0.16 31);
-  --chart-1: oklch(0.74 0.16 31);
-  --chart-2: oklch(0.78 0.12 160);
-  --chart-3: oklch(0.76 0.13 245);
-  --chart-4: oklch(0.72 0.13 285);
-  --chart-5: oklch(0.8 0.14 82);
-  --sidebar: oklch(0.125 0.025 265);
-  --sidebar-foreground: oklch(0.94 0.018 92);
-  --sidebar-primary: oklch(0.78 0.12 160);
-  --sidebar-primary-foreground: oklch(0.15 0.028 265);
-  --sidebar-accent: oklch(0.23 0.035 265);
-  --sidebar-accent-foreground: oklch(0.94 0.018 92);
-  --sidebar-border: oklch(1 0 0 / 13%);
-  --sidebar-ring: oklch(0.78 0.12 160);
+  --ink: #f4f2eb;
+  --ink-soft: #9eaba3;
+  --paper: #111b16;
+  --surface: #17251e;
+  --surface-raised: #1e2f27;
+  --line: #283a31;
+  --line-soft: #203028;
+  --coral: #f07157;
+  --coral-soft: rgba(240, 113, 87, 0.18);
+  --mint: #9fcdb7;
+  --mint-soft: rgba(159, 205, 183, 0.16);
+  --blue: #8fb9c9;
+  --blue-soft: rgba(143, 185, 201, 0.16);
+  --sand: #ddc28d;
+  --sand-soft: rgba(221, 194, 141, 0.16);
+  --white: #15221c;
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--ink);
+  --primary: var(--coral);
+  --primary-foreground: #ffffff;
+  --secondary: var(--surface-raised);
+  --secondary-foreground: var(--ink);
+  --muted-bg: var(--surface-raised);
+  --muted-foreground: var(--ink-soft);
+  --accent-bg: var(--mint-soft);
+  --accent-foreground: var(--mint);
+  --destructive: #e56b67;
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--coral);
+
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--mint);
+  --sidebar-primary-foreground: #15221c;
+  --sidebar-accent: var(--surface-raised);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--coral);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -53,11 +66,6 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -67,26 +75,30 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* Mapped legacy tokens for Expenses/Calendar/Analytics/Profile */
-  --canvas: var(--background);
-  --surface: var(--card);
-  --surface-solid: var(--card);
-  --ink: var(--foreground);
-  --muted: var(--muted-foreground);
-  --line: var(--border);
-  --line-strong: oklch(1 0 0 / 20%);
-  --hover: var(--muted-bg);
-  --accent: var(--primary);
-  --accent-btn: var(--primary);
-  --accent-btn-ink: var(--primary-foreground);
-  --accent-btn-hover: oklch(0.78 0.16 31);
-  --accent-soft: color-mix(in oklch, var(--primary) 15%, transparent);
-  --series-1: var(--chart-1);
-  --series-2: var(--chart-2);
-  --series-3: var(--chart-3);
-  --series-4: var(--chart-4);
-  --series-5: var(--chart-5);
-  --series-6: oklch(0.75 0.15 200);
+  --canvas: var(--paper);
+  --surface-solid: var(--surface-raised);
+  --muted: var(--ink-soft);
+  --line-strong: #374e43;
+  --hover: var(--surface-raised);
+}
+
+:root[data-bs-theme=dark] .insight-card {
+  background: #1d2e25;
+  border-color: var(--line);
+}
+
+:root[data-bs-theme=dark] .metric-card--accent {
+  background: #1e3027;
+}
+
+:root[data-bs-theme=dark] .budget-total,
+:root[data-bs-theme=dark] .budget-bar {
+  background: #25382e;
+}
+
+:root[data-bs-theme=dark] .button--primary {
+  background: var(--coral);
+  color: #ffffff;
 }
 
 /* Theme switch (_ThemeToggle.cshtml): its label names the theme a click switches to */

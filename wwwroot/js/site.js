@@ -13,8 +13,10 @@ document.addEventListener('click', e => {
         if (field) field.value = d[name.toLowerCase()] ?? '';
     }
     const editing = d.id !== '0';
-    dialog.querySelector('h2').textContent = editing ? 'Edit expense' : 'New expense';
-    form.querySelector('[type=submit]').textContent = editing ? 'Save changes' : 'Add expense';
+    const eyebrow = document.getElementById('expense-dialog-eyebrow');
+    if (eyebrow) eyebrow.textContent = editing ? 'Update activity' : 'New activity';
+    dialog.querySelector('h2').textContent = editing ? 'Edit transaction' : 'Add a transaction';
+    form.querySelector('[type=submit]').textContent = editing ? 'Save changes' : 'Save transaction';
     dialog.showModal();
 });
 
@@ -34,31 +36,59 @@ document.addEventListener('keydown', e => {
     }
 });
 
-// 3. Dashboard period switcher (This month / Last month)
+// 3. Mobile navigation drawer toggle
 document.addEventListener('click', e => {
-    const tab = e.target.closest('[data-period-tab]');
-    if (!tab) return;
-    document.querySelectorAll('[data-period-tab]').forEach(b => b.classList.toggle('is-active', b === tab));
-    const spendEl = document.getElementById('fd-kpi-spend');
-    const avgEl = document.getElementById('fd-kpi-avg');
-    const txEl = document.getElementById('fd-kpi-tx');
-    const subEl = document.getElementById('fd-period-subtitle');
-    if (spendEl && tab.dataset.spend) spendEl.textContent = tab.dataset.spend;
-    if (avgEl && tab.dataset.avg) avgEl.textContent = tab.dataset.avg;
-    if (txEl && tab.dataset.tx) txEl.textContent = tab.dataset.tx;
-    if (subEl && tab.dataset.sub) subEl.textContent = tab.dataset.sub;
+    const sidebar = document.getElementById('spendy-sidebar');
+    const scrim = document.getElementById('spendy-scrim');
+    if (!sidebar || !scrim) return;
+
+    if (e.target.closest('#spendy-menu-btn')) {
+        sidebar.classList.add('sidebar--open');
+        scrim.hidden = false;
+    } else if (e.target.closest('#spendy-scrim')) {
+        sidebar.classList.remove('sidebar--open');
+        scrim.hidden = true;
+    }
 });
 
-// 4. Dashboard Spending Pulse window selector (Last 30 days / Last 7 days)
-document.addEventListener('change', e => {
-    if (e.target.id !== 'fd-pulse-select') return;
-    const is7 = e.target.value === '7';
-    const p30 = document.getElementById('fd-pulse-30');
-    const p7 = document.getElementById('fd-pulse-7');
-    const desc = document.getElementById('fd-pulse-desc');
-    if (p30) p30.hidden = is7;
-    if (p7) p7.hidden = !is7;
-    if (desc) desc.textContent = is7
-        ? 'Your daily outflow across the last 7 days'
-        : 'Your daily outflow across the last 30 days';
+// 4. Balance Hero show/hide toggle
+document.addEventListener('click', e => {
+    const btn = e.target.closest('#spendy-balance-toggle');
+    if (!btn) return;
+    const valWrap = document.getElementById('spendy-balance-value');
+    const wholeEl = document.getElementById('spendy-balance-whole');
+    const useEl = document.getElementById('spendy-eye-icon');
+    const visible = btn.dataset.visible !== 'false';
+    const nextVisible = !visible;
+
+    btn.dataset.visible = String(nextVisible);
+    btn.setAttribute('aria-label', nextVisible ? 'Hide balance' : 'Show balance');
+    if (valWrap) valWrap.classList.toggle('balance-value--hidden', !nextVisible);
+    if (wholeEl) wholeEl.textContent = nextVisible ? (btn.dataset.whole || '₹0') : '₹••,•••';
+    if (useEl) useEl.setAttribute('href', nextVisible ? '#i-eye' : '#i-eye-off');
+});
+
+// 5. Cashflow chart Week / Month segmented control
+document.addEventListener('click', e => {
+    const tab = e.target.closest('[data-cashflow-tab]');
+    if (!tab) return;
+    document.querySelectorAll('[data-cashflow-tab]').forEach(b => b.classList.toggle('segmented__active', b === tab));
+    const isWeek = tab.dataset.cashflowTab === 'week';
+    const monthChart = document.getElementById('spendy-chart-month');
+    const weekChart = document.getElementById('spendy-chart-week');
+    if (monthChart) monthChart.hidden = isWeek;
+    if (weekChart) weekChart.hidden = !isWeek;
+});
+
+// 6. Priority goal contribution button toggle
+document.addEventListener('click', e => {
+    const btn = e.target.closest('#spendy-goal-btn');
+    if (!btn) return;
+    const saved = btn.dataset.saved === 'true';
+    const next = !saved;
+    btn.dataset.saved = String(next);
+    const icon = document.getElementById('spendy-goal-icon');
+    const text = document.getElementById('spendy-goal-text');
+    if (icon) icon.setAttribute('href', next ? '#i-check' : '#i-plus');
+    if (text) text.textContent = next ? 'Contribution added' : 'Add contribution';
 });
