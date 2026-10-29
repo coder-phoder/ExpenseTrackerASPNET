@@ -153,6 +153,7 @@
 }
 
 html {
+  font-size: 112.5%;
   background: var(--paper);
 }
 
@@ -874,6 +875,8 @@ svg.i {
 .cashflow {
   grid-column: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .segmented {
@@ -905,8 +908,8 @@ svg.i {
   display: flex;
   align-items: center;
   gap: 1.2rem;
-  margin-top: 1.5rem;
-  font-size: 0.62rem;
+  margin-top: 1.2rem;
+  font-size: 0.68rem;
   color: #7d8781;
 }
 
@@ -931,113 +934,73 @@ svg.i {
 .legend-dot--income { background: var(--ink); }
 .legend-dot--spend { background: var(--coral); }
 
-.chart-summary__note {
-  margin-left: auto;
-  color: #4e795f;
-  font-weight: 700;
-}
-
 .chart {
   position: relative;
-  height: 16rem;
-  margin-top: 0.8rem;
-  padding: 0.5rem 0 1.8rem;
+  min-height: 15rem;
+  margin-top: 1rem;
 }
 
-.chart svg {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.grid-line {
-  stroke: var(--line-soft);
-  stroke-width: 1;
-  stroke-dasharray: 3 6;
-}
-
-.area-path {
-  fill: rgba(159, 205, 183, 0.18);
-}
-
-.income-path,
-.spend-path {
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-
-.income-path {
-  stroke: var(--ink);
-  stroke-width: 2.5;
-}
-
-.spend-path {
-  stroke: var(--coral);
-  stroke-width: 2;
-  stroke-dasharray: 5 6;
-}
-
-.focus-line {
-  stroke: #bfc4c0;
-  stroke-width: 1;
-  stroke-dasharray: 3 4;
-}
-
-.chart-point {
-  stroke: var(--surface);
-  stroke-width: 3;
-}
-
-.chart-point--income { fill: var(--ink); }
-.chart-point--spend { fill: var(--coral); }
-
-.chart__dates {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
+.chart:not([hidden]) {
   display: flex;
-  justify-content: space-between;
-  color: #87908a;
+  flex-direction: column;
+  flex: 1;
+}
+
+.hist-stage {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 30), minmax(0, 1fr));
+  align-items: end;
+  gap: 0.25rem;
+  padding-top: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.hist-stage--weekly {
+  gap: 1.25rem;
+  padding-top: 1.8rem;
+}
+
+.hist-col {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.hist-bar {
+  width: 100%;
+  max-width: 3.2rem;
+  min-height: 4px;
+  border-radius: 0.4rem 0.4rem 0.15rem 0.15rem;
+  background: var(--line-soft);
+  transition: transform 150ms ease, background 150ms ease;
+}
+
+.hist-bar--active {
+  background: var(--ink);
+}
+
+.hist-bar--today,
+.hist-col:hover .hist-bar {
+  background: var(--coral);
+}
+
+.hist-val {
+  margin-bottom: 0.35rem;
   font-size: 0.68rem;
-  font-weight: 600;
+  color: var(--ink);
 }
 
-.chart-tooltip {
-  position: absolute;
-  top: 0.6rem;
-  left: 66%;
-  z-index: 2;
-  border-radius: 0.6rem;
-  background: #15221c;
-  color: #ffffff;
-  padding: 0.55rem 0.75rem;
-  box-shadow: var(--shadow-soft);
+.hist-lbl {
+  margin-top: 0.45rem;
+  height: 1.1rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #87908a;
+  white-space: nowrap;
 }
-
-.chart-tooltip::after {
-  position: absolute;
-  bottom: -0.3rem;
-  left: 1rem;
-  width: 0.6rem;
-  height: 0.6rem;
-  background: #15221c;
-  content: '';
-  transform: rotate(45deg);
-}
-
-.chart-tooltip span,
-.chart-tooltip strong {
-  position: relative;
-  z-index: 1;
-  display: block;
-  margin: 0;
-}
-
-.chart-tooltip span { color: rgba(255,255,255,.65); font-size: 0.62rem; }
-.chart-tooltip strong { margin-top: 0.15rem; font-size: 0.78rem; }
 
 .spending {
   grid-column: 1;
@@ -1184,9 +1147,13 @@ svg.i {
 .right-rail {
   display: flex;
   grid-column: 2;
-  grid-row: 1 / span 4;
+  grid-row: 1 / span 3;
   flex-direction: column;
   gap: 1.2rem;
+}
+
+.right-rail > .recurring {
+  margin-top: auto;
 }
 
 .goal-card {

@@ -43,8 +43,8 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body.lp { --k: 1; margin: 0; background: var(--canvas); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; overflow-x: clip; }
+html { font-size: 112.5%; scroll-behavior: smooth; }
+body.lp { --k: 1; margin: 0; background: var(--canvas); color: var(--ink); font-family: var(--sans); font-size: 1.05rem; -webkit-font-smoothing: antialiased; overflow-x: clip; }
 .lp a { color: var(--link); text-decoration: none; }
 .lp a:hover { color: var(--blue); }
 .lp ::selection { background: var(--peri); color: var(--ink); }

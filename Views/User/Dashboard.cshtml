@@ -45,93 +45,26 @@
         _ => "coral"
     };
 
-    // Build smooth cubic Bezier curves for Cashflow chart (Current vs Previous window)
-    (string AreaPath, string CurPath, string PrevPath, double FocusX, double CurY, double PrevY, string TipDate, string TipCur, string TipPrev, string[] Dates) BuildCashflow(int windowDays)
-    {
-        const int ptsCount = 7;
-        var startDate = today.AddDays(-(windowDays - 1));
-        var prevStart = startDate.AddMonths(-1);
-        var step = Math.Max(1.0, (double)windowDays / ptsCount);
+    // Current month daily histogram (1..daysThis)
+    var dailyBars = Enumerable.Range(1, daysThis)
+        .Select(d => {
+            var date = first.AddDays(d - 1);
+            return (Day: d, Date: date, Amount: Model.Days.GetValueOrDefault(date));
+        })
+        .ToArray();
+    var maxDaily = Math.Max(1m, dailyBars.Max(b => b.Amount));
 
-        var curVals = new double[ptsCount];
-        var prevVals = new double[ptsCount];
-        var labels = new string[ptsCount];
-
-        for (var i = 0; i < ptsCount; i++)
-        {
-            var bStart = startDate.AddDays((int)Math.Round(i * step));
-            var bEnd = i == ptsCount - 1 ? today : startDate.AddDays((int)Math.Round((i + 1) * step) - 1);
-            if (bEnd < bStart) bEnd = bStart;
-
-            var pStart = prevStart.AddDays((int)Math.Round(i * step));
-            var pEnd = pStart.AddDays(Math.Max(0, bEnd.DayNumber - bStart.DayNumber));
-
-            decimal cSum = 0m, pSum = 0m;
-            for (var d = bStart; d <= bEnd; d = d.AddDays(1))
-            {
-                var v = Model.Days.GetValueOrDefault(d);
-                cSum += d.Day == 1 && v > 10000m ? Math.Min(v, 3600m) : v;
-            }
-            for (var d = pStart; d <= pEnd; d = d.AddDays(1))
-            {
-                var v = Model.Days.GetValueOrDefault(d);
-                pSum += d.Day == 1 && v > 10000m ? Math.Min(v, 3600m) : v;
-            }
-
-            curVals[i] = (double)cSum;
-            prevVals[i] = (double)pSum;
-            labels[i] = bStart.ToString("MMM d");
-        }
-
-        var maxVal = Math.Max(100.0, curVals.Concat(prevVals).Max());
-        (double X, double Y)[] MapCoords(double[] vals, double floorY, double rangeY) =>
-            vals.Select((v, i) => (
-                X: Math.Round(i * (720.0 / (ptsCount - 1)), 1),
-                Y: Math.Clamp(floorY - (v / maxVal) * rangeY, 27.0, floorY)
-            )).ToArray();
-
-        string SmoothPath((double X, double Y)[] pts)
-        {
-            var sb = new System.Text.StringBuilder($"M{F(pts[0].X)} {F(pts[0].Y)}");
-            for (var i = 0; i < pts.Length - 1; i++)
-            {
-                var p0 = pts[i];
-                var p1 = pts[i + 1];
-                var cx1 = p0.X + (p1.X - p0.X) * 0.45;
-                var cx2 = p0.X + (p1.X - p0.X) * 0.55;
-                sb.Append($" C{F(cx1)} {F(p0.Y)} {F(cx2)} {F(p1.Y)} {F(p1.X)} {F(p1.Y)}");
-            }
-            return sb.ToString();
-        }
-
-        var curPts = MapCoords(curVals, 185.0, 150.0);
-        var prevPts = MapCoords(prevVals, 192.0, 125.0);
-        var curLine = SmoothPath(curPts);
-        var prevLine = SmoothPath(prevPts);
-        var area = $"{curLine} L720 201 L0 201 Z";
-
-        const int focusIdx = 4;
-        var fx = curPts[focusIdx].X;
-        var cy = curPts[focusIdx].Y;
-        var py = prevPts[focusIdx].Y;
-        var tipCur = ((decimal)curVals[focusIdx]).ToString("C0");
-        var tipPrev = ((decimal)prevVals[focusIdx]).ToString("C0");
-
-        return (area, curLine, prevLine, fx, cy, py, labels[focusIdx], tipCur, tipPrev, labels);
-    }
-
-    var cfMonth = BuildCashflow(30);
-    var cfWeek = BuildCashflow(7);
-
-    // Top 3 categories this month
-    string[] tones = ["ink", "coral", "blue"];
-    var topCategories = new List<(string Label, decimal Spent, int Percent, string Tone)>();
-    for (var i = 0; i < Math.Min(3, Model.Categories.Count); i++)
-    {
-        var c = Model.Categories[i];
-        var pct = spent > 0 ? Math.Clamp((int)Math.Round(c.Amount / spent * 100m), 6, 100) : 0;
-        topCategories.Add((c.Key, c.Amount, pct, tones[i]));
-    }
+    // Current month weekly histogram (4 or 5 weeks)
+    var weekCount = (daysThis + 6) / 7;
+    var weeklyBars = Enumerable.Range(0, weekCount)
+        .Select(w => {
+            var sDay = w * 7 + 1;
+            var eDay = Math.Min(daysThis, (w + 1) * 7);
+            var amt = dailyBars.Skip(sDay - 1).Take(eDay - sDay + 1).Sum(b => b.Amount);
+            return (Label: $"Week {w + 1}", Range: $"{sDay}–{eDay} {first:MMM}", Amount: amt);
+        })
+        .ToArray();
+    var maxWeekly = Math.Max(1m, weeklyBars.Max(b => b.Amount));
 
     // Biggest expenses this month
     var biggestExpenses = Model.MonthExpenses
@@ -237,108 +170,51 @@
 
     <section class="panel cashflow">
         <div class="panel__header">
-            <h2>Daily spending</h2>
+            <h2>Your Spendings</h2>
             <div class="segmented" aria-label="Chart period">
-                <button type="button" data-cashflow-tab="week">7 days</button>
-                <button type="button" class="segmented__active" data-cashflow-tab="month">30 days</button>
-                <a asp-action="Analytics" class="text-decoration-none" style="border-radius:0.5rem;padding:0.38rem 0.65rem;color:#7b847f;font-size:0.65rem;font-weight:700">Year</a>
+                <button type="button" class="segmented__active" data-cashflow-tab="month">Monthly</button>
+                <button type="button" data-cashflow-tab="week">Weekly</button>
             </div>
         </div>
 
         <div class="chart-summary">
             <div>
                 <span class="legend-dot legend-dot--income"></span>
-                This month <strong class="num">@spent.ToString("C0")</strong>
+                @first.ToString("MMMM yyyy") <strong class="num">@spent.ToString("C0")</strong>
             </div>
             <div>
                 <span class="legend-dot legend-dot--spend"></span>
-                Last month <strong class="num">@prevFull.ToString("C0")</strong>
+                Daily avg <strong class="num">@dailyAvg.ToString("C0")</strong>
             </div>
         </div>
 
-        <div class="chart" id="spendy-chart-month" aria-label="Daily spending chart for the last 30 days">
-            <svg viewBox="0 0 720 230" preserveAspectRatio="none" role="img">
-                <title>Monthly spending</title>
-                <line x1="0" y1="18" x2="720" y2="18" class="grid-line" />
-                <line x1="0" y1="79" x2="720" y2="79" class="grid-line" />
-                <line x1="0" y1="140" x2="720" y2="140" class="grid-line" />
-                <line x1="0" y1="201" x2="720" y2="201" class="grid-line" />
-                <path class="area-path" d="@cfMonth.AreaPath" />
-                <path class="income-path" d="@cfMonth.CurPath" />
-                <path class="spend-path" d="@cfMonth.PrevPath" />
-                <line x1="@F(cfMonth.FocusX)" y1="25" x2="@F(cfMonth.FocusX)" y2="201" class="focus-line" />
-                <circle cx="@F(cfMonth.FocusX)" cy="@F(cfMonth.CurY)" r="5" class="chart-point chart-point--income" />
-                <circle cx="@F(cfMonth.FocusX)" cy="@F(cfMonth.PrevY)" r="5" class="chart-point chart-point--spend" />
-            </svg>
-            <div class="chart-tooltip">
-                <span>@cfMonth.TipDate</span>
-                <strong class="num">@cfMonth.TipCur</strong>
-            </div>
-            <div class="chart__dates">
-                @foreach (var d in cfMonth.Dates)
+        <div class="chart" id="spendy-chart-month" aria-label="Daily spending histogram for this month">
+            <div class="hist-stage" style="--cols: @daysThis">
+                @foreach (var b in dailyBars)
                 {
-                    <span>@d</span>
-                }
-            </div>
-        </div>
-
-        <div class="chart" id="spendy-chart-week" aria-label="Daily spending chart for the last 7 days" hidden>
-            <svg viewBox="0 0 720 230" preserveAspectRatio="none" role="img">
-                <title>Weekly spending</title>
-                <line x1="0" y1="18" x2="720" y2="18" class="grid-line" />
-                <line x1="0" y1="79" x2="720" y2="79" class="grid-line" />
-                <line x1="0" y1="140" x2="720" y2="140" class="grid-line" />
-                <line x1="0" y1="201" x2="720" y2="201" class="grid-line" />
-                <path class="area-path" d="@cfWeek.AreaPath" />
-                <path class="income-path" d="@cfWeek.CurPath" />
-                <path class="spend-path" d="@cfWeek.PrevPath" />
-                <line x1="@F(cfWeek.FocusX)" y1="25" x2="@F(cfWeek.FocusX)" y2="201" class="focus-line" />
-                <circle cx="@F(cfWeek.FocusX)" cy="@F(cfWeek.CurY)" r="5" class="chart-point chart-point--income" />
-                <circle cx="@F(cfWeek.FocusX)" cy="@F(cfWeek.PrevY)" r="5" class="chart-point chart-point--spend" />
-            </svg>
-            <div class="chart-tooltip">
-                <span>@cfWeek.TipDate</span>
-                <strong class="num">@cfWeek.TipCur</strong>
-            </div>
-            <div class="chart__dates">
-                @foreach (var d in cfWeek.Dates)
-                {
-                    <span>@d</span>
-                }
-            </div>
-        </div>
-    </section>
-
-    <section class="panel spending">
-        <div class="panel__header">
-            <h2>Top categories this month</h2>
-            <span class="days-left">@Model.Categories.Count @(Model.Categories.Count == 1 ? "category" : "categories")</span>
-        </div>
-        @if (topCategories.Count == 0)
-        {
-            <p class="muted mb-0 mt-3">No expenses added this month yet.</p>
-        }
-        else
-        {
-            <div class="budget-list">
-                @foreach (var row in topCategories)
-                {
-                    <div class="budget-row">
-                        <div class="budget-row__heading">
-                            <p>@row.Label</p>
-                            <span class="num"><strong>@row.Spent.ToString("C0")</strong> (@row.Percent%)</span>
-                        </div>
-                        <div class="budget-bar">
-                            <span class="budget-bar__fill budget-bar__fill--@row.Tone" style="width: @(row.Percent)%"></span>
-                        </div>
+                    var hPct = b.Amount > 0 ? Math.Clamp((double)(b.Amount / maxDaily) * 100.0, 8.0, 100.0) : 3.0;
+                    var isToday = b.Date == today;
+                    <div class="hist-col" title="@b.Date.ToString("d MMM"): @b.Amount.ToString("C0")">
+                        <div class="hist-bar @(isToday ? "hist-bar--today" : b.Amount > 0 ? "hist-bar--active" : "")" style="height: @F(hPct)%"></div>
+                        <span class="hist-lbl">@(b.Day == 1 || b.Day % 5 == 0 || b.Day == daysThis ? b.Day.ToString() : "")</span>
                     </div>
                 }
             </div>
-        }
-        <a asp-action="Calendar" class="text-link">
-            Open calendar
-            <svg class="i" style="width:15px;height:15px"><use href="#i-arrow-up-right" /></svg>
-        </a>
+        </div>
+
+        <div class="chart" id="spendy-chart-week" aria-label="Weekly spending histogram for this month" hidden>
+            <div class="hist-stage hist-stage--weekly" style="--cols: @weeklyBars.Length">
+                @foreach (var w in weeklyBars)
+                {
+                    var hPct = w.Amount > 0 ? Math.Clamp((double)(w.Amount / maxWeekly) * 100.0, 10.0, 100.0) : 4.0;
+                    <div class="hist-col" title="@w.Range: @w.Amount.ToString("C0")">
+                        <strong class="hist-val num">@w.Amount.ToString("C0")</strong>
+                        <div class="hist-bar @(w.Amount > 0 ? "hist-bar--active" : "")" style="height: @F(hPct)%"></div>
+                        <span class="hist-lbl">@w.Label <small class="d-none d-sm-inline">(@w.Range)</small></span>
+                    </div>
+                }
+            </div>
+        </div>
     </section>
 
     <aside class="right-rail">

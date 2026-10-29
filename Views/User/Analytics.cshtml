@@ -102,6 +102,17 @@
     var topCategories = categories.Take(5).ToList();
     var topCatName = topCategories.FirstOrDefault().Name ?? "Living";
 
+    string[] monthTones = ["ink", "coral", "blue"];
+    var monthCategories = Model
+        .Where(e => e.Date >= thisMonth && e.Date < thisMonth.AddMonths(1))
+        .GroupBy(e => e.Category)
+        .Select(g => (Label: g.Key, Spent: g.Sum(e => e.Price ?? 0m)))
+        .OrderByDescending(c => c.Spent)
+        .ToList();
+    var topMonthCategories = monthCategories.Take(3)
+        .Select((c, i) => (c.Label, c.Spent, Percent: monthTotal > 0 ? Math.Clamp((int)Math.Round(c.Spent / monthTotal * 100m), 6, 100) : 0, Tone: monthTones[i]))
+        .ToList();
+
     // Day-of-week habit capsules (Mon..Sun)
     DayOfWeek[] dowOrder = [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday];
     string[] dowShort = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -304,6 +315,38 @@
                 }
             </div>
         </div>
+    </section>
+
+    <section class="panel spending an-col-12">
+        <div class="panel__header">
+            <h2>Top categories this month</h2>
+            <span class="days-left">@monthCategories.Count @(monthCategories.Count == 1 ? "category" : "categories")</span>
+        </div>
+        @if (topMonthCategories.Count == 0)
+        {
+            <p class="muted mb-0 mt-3">No expenses added this month yet.</p>
+        }
+        else
+        {
+            <div class="budget-list">
+                @foreach (var row in topMonthCategories)
+                {
+                    <div class="budget-row">
+                        <div class="budget-row__heading">
+                            <p>@row.Label</p>
+                            <span class="num"><strong>@row.Spent.ToString("C0")</strong> (@row.Percent%)</span>
+                        </div>
+                        <div class="budget-bar">
+                            <span class="budget-bar__fill budget-bar__fill--@row.Tone" style="width: @(row.Percent)%"></span>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        <a asp-action="Calendar" class="text-link">
+            Open calendar
+            <svg class="i" style="width:15px;height:15px"><use href="#i-arrow-up-right" /></svg>
+        </a>
     </section>
 
     @* 4. Spending by Day of the Week *@
