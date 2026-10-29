@@ -6,8 +6,11 @@
     var first = Model.Month;
     var daysInMonth = DateTime.DaysInMonth(first.Year, first.Month);
     var last = new DateOnly(first.Year, first.Month, daysInMonth);
-    var prevIso = first.AddMonths(-1).ToString("yyyy-MM-dd");
-    var nextIso = first.AddMonths(1).ToString("yyyy-MM-dd");
+    var prevMonth = first.AddMonths(-1);
+    var nextMonth = first.AddMonths(1);
+    var prevIso = prevMonth.ToString("yyyy-MM");
+    var nextIso = nextMonth.ToString("yyyy-MM");
+    var currentMonthIso = first.ToString("yyyy-MM");
 
     var count = Model.Expenses.Count;
     var total = Model.Expenses.Sum(e => e.Price ?? 0m);
@@ -39,20 +42,33 @@
 
 <div class="st-toolbar d-print-none">
     <div class="st-toolbar__nav">
-        <a asp-action="Statement" asp-route-month="@prevIso" class="btn btn-outline-secondary" aria-label="Previous month">&lsaquo;</a>
+        <a asp-action="Statement" asp-route-month="@prevIso"
+           class="btn btn-outline-secondary st-nav-btn"
+           title="Previous month (@prevMonth.ToString("MMMM yyyy"))"
+           aria-label="Previous month: @prevMonth.ToString("MMMM yyyy")">&lsaquo;</a>
+
         <form asp-action="Statement" method="get" class="st-toolbar__form">
-            <input type="date" name="month" value="@first.ToString("yyyy-MM-dd")" class="form-control" aria-label="Statement month" required />
-            <button type="submit" class="btn btn-outline-secondary">Show</button>
+            <input type="month"
+                   name="month"
+                   value="@currentMonthIso"
+                   class="form-control st-month-input"
+                   aria-label="Statement month"
+                   onchange="this.form.submit()"
+                   required />
         </form>
-        <a asp-action="Statement" asp-route-month="@nextIso" class="btn btn-outline-secondary" aria-label="Next month">&rsaquo;</a>
+
+        <a asp-action="Statement" asp-route-month="@nextIso"
+           class="btn btn-outline-secondary st-nav-btn"
+           title="Next month (@nextMonth.ToString("MMMM yyyy"))"
+           aria-label="Next month: @nextMonth.ToString("MMMM yyyy")">&rsaquo;</a>
     </div>
     <div class="st-toolbar__actions">
         <a asp-action="ExportCsv" asp-route-from="@first.ToString("yyyy-MM-dd")" asp-route-to="@last.ToString("yyyy-MM-dd")"
            asp-route-sort="date_asc" class="btn btn-outline-secondary">
-            <svg class="i"><use href="#i-download" /></svg>Download CSV
+            <svg class="i"><use href="#i-download" /></svg><span>Download CSV</span>
         </a>
         <button type="button" class="btn btn-primary" onclick="print()">
-            <svg class="i"><use href="#i-receipt" /></svg>Save as PDF
+            <svg class="i"><use href="#i-receipt" /></svg><span>Save as PDF</span>
         </button>
     </div>
 </div>

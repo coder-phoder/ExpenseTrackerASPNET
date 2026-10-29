@@ -151,7 +151,7 @@ public class UserController(AppDbContext db, IConfiguration config) : Controller
     }
 
     private static DateOnly? ParseMonth(string? s) =>
-        DateOnly.TryParseExact(s, ["yyyy-MM", "yyyy-MM-dd"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
+        DateOnly.TryParseExact(s, ["yyyy-MM", "yyyy-M", "yyyy-MM-dd", "yyyy-M-d"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
 
     [Authorize]
     [HttpPost]
