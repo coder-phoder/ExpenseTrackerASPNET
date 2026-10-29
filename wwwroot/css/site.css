@@ -2299,3 +2299,19 @@ a.cal-day:hover {
   background: var(--coral-soft);
   color: var(--coral);
 }
+
+@media print {
+  html,
+  body {
+    background: #ffffff !important;
+  }
+
+  .main {
+    margin-left: 0 !important;
+  }
+
+  .page-content {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+}

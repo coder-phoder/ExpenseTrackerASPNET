@@ -108,9 +108,9 @@ public class UserController(AppDbContext db, IConfiguration config) : Controller
     }
 
     [Authorize]
-    public async Task<IActionResult> Calendar(DateOnly? month, DateOnly? day)
+    public async Task<IActionResult> Calendar(string? month, DateOnly? day)
     {
-        var date = month ?? day ?? DateOnly.FromDateTime(DateTime.Today);
+        var date = ParseMonth(month) ?? day ?? DateOnly.FromDateTime(DateTime.Today);
         var first = new DateOnly(date.Year, date.Month, 1);
         var expenses = await db.Expenses
             .Where(e => e.UserId == CurrentUserId && e.Date >= first && e.Date < first.AddMonths(1))
@@ -139,9 +139,9 @@ public class UserController(AppDbContext db, IConfiguration config) : Controller
 
     // A print-friendly page; the browser's "Save as PDF" turns it into the PDF statement.
     [Authorize]
-    public async Task<IActionResult> Statement(DateOnly? month)
+    public async Task<IActionResult> Statement(string? month)
     {
-        var date = month ?? DateOnly.FromDateTime(DateTime.Today);
+        var date = ParseMonth(month) ?? DateOnly.FromDateTime(DateTime.Today);
         var first = new DateOnly(date.Year, date.Month, 1);
         var expenses = await db.Expenses
             .Where(e => e.UserId == CurrentUserId && e.Date >= first && e.Date < first.AddMonths(1))
@@ -149,6 +149,9 @@ public class UserController(AppDbContext db, IConfiguration config) : Controller
             .ToListAsync();
         return View((first, expenses));
     }
+
+    private static DateOnly? ParseMonth(string? s) =>
+        DateOnly.TryParseExact(s, ["yyyy-MM", "yyyy-MM-dd"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
 
     [Authorize]
     [HttpPost]
