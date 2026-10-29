@@ -3,7 +3,7 @@
     var signedIn = User.Identity?.IsAuthenticated == true;
     var isUser = signedIn && !User.IsInRole("Admin");
     var action = ViewContext.RouteData.Values["action"] as string;
-    var current = action == "Statement" ? "Calendar" : action;
+    var current = action;
     var name = User.Identity?.Name ?? "Krish Parikh";
     var firstName = name.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "Krish";
     var initials = string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpperInvariant(w[0])));
@@ -12,13 +12,14 @@
     var hour = DateTime.Now.Hour;
     var greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
     var todayIso = DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd");
+    var thisMonthIso = DateTime.Today.ToString("yyyy-MM");
 
     (string Action, string Label, string Icon)[] navItems = isUser
         ? [
             ("Dashboard", "Overview", "overview"),
-            ("Expenses", "Transactions", "transactions"),
-            ("Calendar", "Spending plan", "budget"),
-            ("Analytics", "Goals", "goals")
+            ("Expenses", "Expenses", "transactions"),
+            ("Calendar", "Calendar", "budget"),
+            ("Analytics", "Analytics", "goals")
         ]
         : [];
 }
@@ -94,9 +95,13 @@
                             <span>@item.Label</span>
                         </a>
                     }
-                    <a asp-controller="User" asp-action="ExportCsv" class="nav-item">
+                    <a asp-controller="User"
+                       asp-action="Statement"
+                       asp-route-month="@thisMonthIso"
+                       class="nav-item @(current == "Statement" ? "nav-item--active" : "")"
+                       aria-current="@(current == "Statement" ? "page" : null)">
                         <svg class="i"><use href="#i-download" /></svg>
-                        <span>Export CSV</span>
+                        <span>Print PDF</span>
                     </a>
                 </nav>
 
@@ -106,9 +111,9 @@
                             <svg class="i" style="width:18px;height:18px"><use href="#i-goals" /></svg>
                         </span>
                         <p class="insight-card__title">@DateTime.Today.ToString("MMMM") insight</p>
-                        <p class="insight-card__copy">Your spending rhythm and goals are synced in real time.</p>
+                        <p class="insight-card__copy">Your spending rhythm and analytics are synced in real time.</p>
                         <a asp-controller="User" asp-action="Analytics" class="insight-card__link">
-                            See your progress
+                            See your analytics
                             <svg class="i" style="width:15px;height:15px"><use href="#i-arrow-up-right" /></svg>
                         </a>
                     </div>
@@ -157,12 +162,12 @@
                             <input type="search"
                                    name="q"
                                    id="fd-global-search"
-                                   placeholder="Search transactions (⌘K)"
+                                   placeholder="Search expenses (⌘K)"
                                    value="@Context.Request.Query["q"]"
-                                   aria-label="Search transactions" />
+                                   aria-label="Search expenses" />
                         </form>
                         <partial name="_ThemeToggle" model='"button button--icon theme-icon"' />
-                        <a asp-controller="User" asp-action="Analytics" class="button button--icon notification-button" aria-label="Notifications" title="Insights &amp; Goals">
+                        <a asp-controller="User" asp-action="Analytics" class="button button--icon notification-button" aria-label="Analytics" title="Analytics">
                             <svg class="i"><use href="#i-bell" /></svg>
                             <span class="notification-dot"></span>
                         </a>
@@ -170,7 +175,7 @@
                                 class="button button--primary"
                                 data-expense data-id="0" data-date="@todayIso" data-paymentmode="0">
                             <svg class="i" style="width:18px;height:18px"><use href="#i-plus" /></svg>
-                            <span>Add transaction</span>
+                            <span>Add expense</span>
                         </button>
                     </div>
                 </header>

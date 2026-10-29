@@ -14,9 +14,9 @@ document.addEventListener('click', e => {
     }
     const editing = d.id !== '0';
     const eyebrow = document.getElementById('expense-dialog-eyebrow');
-    if (eyebrow) eyebrow.textContent = editing ? 'Update activity' : 'New activity';
-    dialog.querySelector('h2').textContent = editing ? 'Edit transaction' : 'Add a transaction';
-    form.querySelector('[type=submit]').textContent = editing ? 'Save changes' : 'Save transaction';
+    if (eyebrow) eyebrow.textContent = editing ? 'Update expense' : 'New expense';
+    dialog.querySelector('h2').textContent = editing ? 'Edit expense' : 'Add an expense';
+    form.querySelector('[type=submit]').textContent = editing ? 'Save changes' : 'Save expense';
     dialog.showModal();
 });
 
@@ -78,17 +78,4 @@ document.addEventListener('click', e => {
     const weekChart = document.getElementById('spendy-chart-week');
     if (monthChart) monthChart.hidden = isWeek;
     if (weekChart) weekChart.hidden = !isWeek;
-});
-
-// 6. Priority goal contribution button toggle
-document.addEventListener('click', e => {
-    const btn = e.target.closest('#spendy-goal-btn');
-    if (!btn) return;
-    const saved = btn.dataset.saved === 'true';
-    const next = !saved;
-    btn.dataset.saved = String(next);
-    const icon = document.getElementById('spendy-goal-icon');
-    const text = document.getElementById('spendy-goal-text');
-    if (icon) icon.setAttribute('href', next ? '#i-check' : '#i-plus');
-    if (text) text.textContent = next ? 'Contribution added' : 'Add contribution';
 });

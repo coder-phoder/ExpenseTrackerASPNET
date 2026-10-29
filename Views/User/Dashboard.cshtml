@@ -366,7 +366,7 @@
     <section class="panel spending">
         <div class="panel__header">
             <div>
-                <p class="eyebrow">Spending plan</p>
+                <p class="eyebrow">Calendar</p>
                 <h2 class="num">@spent.ToString("C0") of @budgetTarget.ToString("C0")</h2>
             </div>
             <span class="days-left">@daysRemaining @(daysRemaining == 1 ? "day" : "days") left</span>
@@ -389,7 +389,7 @@
             }
         </div>
         <a asp-action="Calendar" class="text-link">
-            Open spending plan
+            Open calendar
             <svg class="i" style="width:15px;height:15px"><use href="#i-arrow-up-right" /></svg>
         </a>
     </section>
@@ -398,7 +398,7 @@
         <div class="panel__header">
             <div>
                 <p class="eyebrow">Activity</p>
-                <h2>Latest transactions</h2>
+                <h2>Latest expenses</h2>
             </div>
             <a asp-action="Expenses" class="text-link">
                 View all
@@ -408,7 +408,7 @@
         <div class="transaction-list">
             @if (Model.Recent.Count == 0)
             {
-                <p class="muted small mb-0 py-3">No transactions logged yet. Click <strong>Add transaction</strong> above to record your first one.</p>
+                <p class="muted small mb-0 py-3">No expenses logged yet. Click <strong>Add expense</strong> above to record your first one.</p>
             }
             else
             {
@@ -445,21 +445,21 @@
     <aside class="right-rail">
         <section class="goal-card">
             <div class="goal-card__top">
-                <span class="eyebrow eyebrow--light">Priority goal</span>
-                <a asp-action="Analytics" aria-label="Open goal">
+                <span class="eyebrow eyebrow--light">Analytics</span>
+                <a asp-action="Analytics" aria-label="Open analytics">
                     <svg class="i" style="width:18px;height:18px"><use href="#i-arrow-up-right" /></svg>
                 </a>
             </div>
             <h2>A little place by the sea.</h2>
             <p>Emergency &amp; travel fund</p>
             <div class="goal-visual">
-                <svg viewBox="0 0 160 160" role="img" aria-label="@goalPct percent of goal saved">
+                <svg viewBox="0 0 160 160" role="img" aria-label="@goalPct percent of target saved">
                     <circle cx="80" cy="80" r="62" class="goal-track" />
                     <circle cx="80" cy="80" r="62" class="goal-progress" style="stroke-dashoffset: @goalDashOffset" />
                 </svg>
                 <div>
                     <strong>@goalPct%</strong>
-                    <span>funded</span>
+                    <span>saved</span>
                 </div>
             </div>
             <div class="goal-card__numbers">
@@ -472,10 +472,10 @@
                     <strong class="num">@goalTarget.ToString("C0")</strong>
                 </div>
             </div>
-            <button type="button" class="goal-button" id="spendy-goal-btn">
-                <svg class="i" style="width:17px;height:17px"><use href="#i-plus" id="spendy-goal-icon" /></svg>
-                <span id="spendy-goal-text">Add contribution</span>
-            </button>
+            <a asp-action="Analytics" class="goal-button text-decoration-none">
+                <span>Open analytics</span>
+                <svg class="i" style="width:17px;height:17px"><use href="#i-arrow-up-right" /></svg>
+            </a>
         </section>
 
         <section class="panel recurring">

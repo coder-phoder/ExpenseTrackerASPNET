@@ -1,7 +1,7 @@
 @using System.Globalization
 @model List<Expense>
 @{
-    ViewData["Title"] = "Goals & Insights";
+    ViewData["Title"] = "Analytics";
 }
 
 @if (Model.Count == 0)
@@ -9,8 +9,8 @@
     <section class="panel text-center py-5">
         <p class="eyebrow">Your money story</p>
         <h2 style="font-family:var(--font-display);font-size:2rem;font-weight:400">No expenses logged yet.</h2>
-        <p class="muted small mt-2 mb-4">Add a few transactions from your Overview or Transactions page and Spendy will turn them into visual stories.</p>
-        <a asp-action="Expenses" class="button button--primary">Go to Transactions</a>
+        <p class="muted small mt-2 mb-4">Add a few expenses from your Overview or Expenses page and Spendy will turn them into visual stories.</p>
+        <a asp-action="Expenses" class="button button--primary">Go to Expenses</a>
     </section>
     return;
 }
@@ -198,7 +198,7 @@
             <div class="an-glass-stat">
                 <span>Typical purchase</span>
                 <strong class="num">@avgTicket.ToString("C0")</strong>
-                <small>Across @Model.Count transactions</small>
+                <small>Across @Model.Count @(Model.Count == 1 ? "expense" : "expenses")</small>
             </div>
             <div class="an-glass-stat">
                 <span>All-time tracked</span>
@@ -410,7 +410,7 @@
                         <span class="num" style="color:var(--coral)">@pct%</span>
                     </div>
                     <strong class="num">@CompactMoney(m.Amount)</strong>
-                    <small>@Model.Count(e => e.PaymentMode == m.Mode) transactions</small>
+                    <small>@Model.Count(e => e.PaymentMode == m.Mode) @(Model.Count(e => e.PaymentMode == m.Mode) == 1 ? "expense" : "expenses")</small>
                 </div>
             }
         </div>
