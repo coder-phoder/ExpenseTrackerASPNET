@@ -268,23 +268,33 @@
                         {
                             var cat = monthCategories[i];
                             var style = catStyles[i % catStyles.Length];
+                            var pct = (int)Math.Round(cat.Amount / selMonthTotalSafe * 100m);
+                            var countText = $"{cat.Count} {(cat.Count == 1 ? "expense" : "expenses")}";
                             var seg = Math.Max(0.0, (double)(cat.Amount / selMonthTotalSafe) * pieCirc);
                             <circle cx="60"
-                                    cy="60"
-                                    r="30"
-                                    fill="none"
-                                    stroke="@style.Color"
-                                    stroke-width="60"
-                                    stroke-dasharray="@F(seg) @F(pieCirc)"
-                                    stroke-dashoffset="@F(-pieOffset)"
-                                    class="an-pie-slice"
-                                    data-cat-open="@cat.Name"
-                                    data-cat-title="@cat.Name · @selectedMonth.ToString("MMMM yyyy") (@cat.Amount.ToString("C0"))">
-                                <title>@cat.Name: @cat.Amount.ToString("C0")</title>
+                                     cy="60"
+                                     r="30"
+                                     fill="none"
+                                     stroke="@style.Color"
+                                     stroke-width="60"
+                                     stroke-dasharray="@F(seg) @F(pieCirc)"
+                                     stroke-dashoffset="@F(-pieOffset)"
+                                     class="an-pie-slice"
+                                     data-cat-open="@cat.Name"
+                                     data-cat-pct="@pct%"
+                                     data-cat-total="@cat.Amount.ToString("C0")"
+                                     data-cat-count="@countText"
+                                     data-cat-title="@cat.Name · @selectedMonth.ToString("MMMM yyyy") (@cat.Amount.ToString("C0"))">
+                                <title>@cat.Name: @pct% · @cat.Amount.ToString("C0") (@countText)</title>
                             </circle>
                             pieOffset += seg;
                         }
                     </svg>
+                    <div class="an-pie-tip" aria-hidden="true">
+                        <span class="an-pie-tip__cat" id="an-pie-tip-cat"></span>
+                        <strong class="an-pie-tip__pct num" id="an-pie-tip-pct"></strong>
+                        <span class="an-pie-tip__total num" id="an-pie-tip-total"></span>
+                    </div>
                 </div>
 
                 <div class="an-cat-list">
@@ -293,9 +303,13 @@
                         var cat = monthCategories[i];
                         var style = catStyles[i % catStyles.Length];
                         var pct = (int)Math.Round(cat.Amount / selMonthTotalSafe * 100m);
+                        var countText = $"{cat.Count} {(cat.Count == 1 ? "expense" : "expenses")}";
                         var relWidth = Math.Clamp((int)Math.Round(cat.Amount / monthCategories[0].Amount * 100m), 8, 100);
                         <button type="button" class="an-cat-item"
                                 data-cat-open="@cat.Name"
+                                data-cat-pct="@pct%"
+                                data-cat-total="@cat.Amount.ToString("C0")"
+                                data-cat-count="@countText"
                                 data-cat-title="@cat.Name · @selectedMonth.ToString("MMMM yyyy") (@cat.Amount.ToString("C0"))">
                             <span class="transaction__icon transaction__icon--@style.Tone" style="width:2.2rem;height:2.2rem;border-radius:0.65rem">
                                 <svg class="i" style="width:16px;height:16px"><use href="@CatIcon(cat.Name)" /></svg>

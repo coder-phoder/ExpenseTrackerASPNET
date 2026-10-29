@@ -39,6 +39,26 @@ document.addEventListener('click', e => {
 });
 
 // 6. Histogram / Category click -> opens modal showing filtered expenses
+const donutWrap = document.querySelector('.an-donut-wrap');
+if (donutWrap) {
+    const tipCat = document.getElementById('an-pie-tip-cat');
+    const tipPct = document.getElementById('an-pie-tip-pct');
+    const tipTotal = document.getElementById('an-pie-tip-total');
+    const items = donutWrap.querySelectorAll('[data-cat-open]');
+    const setHover = el => {
+        const name = el?.dataset.catOpen;
+        donutWrap.classList.toggle('has-hover', !!name);
+        items.forEach(n => n.classList.toggle('is-active', n.dataset.catOpen === name));
+        if (name) {
+            tipCat.textContent = name;
+            tipPct.textContent = el.dataset.catPct;
+            tipTotal.textContent = `${el.dataset.catTotal} · ${el.dataset.catCount}`;
+        }
+    };
+    donutWrap.addEventListener('pointerover', e => setHover(e.target.closest('[data-cat-open]')));
+    donutWrap.addEventListener('pointerleave', () => setHover(null));
+}
+
 document.addEventListener('click', e => {
     const cat = e.target.closest('[data-cat-open]');
     if (cat) {
