@@ -7,10 +7,8 @@
 @if (Model.Count == 0)
 {
     <section class="panel text-center py-5">
-        <p class="eyebrow">Your money story</p>
-        <h2 style="font-family:var(--font-display);font-size:2rem;font-weight:400">No expenses logged yet.</h2>
-        <p class="muted small mt-2 mb-4">Add a few expenses from your Overview or Expenses page and Spendy will turn them into visual stories.</p>
-        <a asp-action="Expenses" class="button button--primary">Go to Expenses</a>
+        <h2 class="mb-4" style="font-family:var(--font-display);font-size:2rem;font-weight:400">No expenses yet</h2>
+        <a asp-action="Expenses" class="button button--primary">Add expense</a>
     </section>
     return;
 }
@@ -142,26 +140,19 @@
     <section class="an-hero an-col-12">
         <div class="an-hero__main">
             <div>
-                <span class="eyebrow eyebrow--light">Your money story</span>
                 <h2 class="an-hero__headline">
                     @if (monthTotal <= prevMonthTotal && prevMonthTotal > 0)
                     {
-                        <text>You’re pacing <em>@((prevMonthTotal - monthTotal).ToString("C0")) calmer</em> than last month.</text>
+                        <text><em>@((prevMonthTotal - monthTotal).ToString("C0")) calmer</em> than last month.</text>
                     }
                     else
                     {
-                        <text><em>@topCatName</em> shapes most of your rhythm right now.</text>
+                        <text><em>@topCatName</em> leads your spending.</text>
                     }
                 </h2>
-                <p class="an-hero__sub">
-                    Instead of raw spreadsheets, here is how your money actually feels: you’ve enjoyed
-                    <strong>@calmDaysThisMonth zero-spend calm @(calmDaysThisMonth == 1 ? "day" : "days")</strong> this month, with a daily comfort pace of
-                    <strong class="num">@dailyAvg.ToString("C0")</strong>.
-                </p>
             </div>
 
             <div class="an-split-box">
-                <span class="eyebrow eyebrow--light">Mindful spending balance</span>
                 <div class="an-split-bar" role="img" aria-label="Needs @needsPct%, Lifestyle @wantsPct%, Buffer @otherPct%">
                     <span style="flex: @Math.Max(8, needsPct); background: var(--mint)"></span>
                     <span style="flex: @Math.Max(8, wantsPct); background: var(--coral)"></span>
@@ -170,15 +161,15 @@
                 <div class="an-split-legend">
                     <div class="an-split-item">
                         <span class="an-split-dot" style="background: var(--mint)"></span>
-                        <span>Essentials &amp; Home <strong class="num">@needsPct%</strong> (@CompactMoney(needsAmt))</span>
+                        <span>Essentials <strong class="num">@needsPct%</strong></span>
                     </div>
                     <div class="an-split-item">
                         <span class="an-split-dot" style="background: var(--coral)"></span>
-                        <span>Lifestyle &amp; Fun <strong class="num">@wantsPct%</strong> (@CompactMoney(wantsAmt))</span>
+                        <span>Lifestyle <strong class="num">@wantsPct%</strong></span>
                     </div>
                     <div class="an-split-item">
                         <span class="an-split-dot" style="background: var(--sand)"></span>
-                        <span>Other <strong class="num">@otherPct%</strong> (@CompactMoney(otherAmt))</span>
+                        <span>Other <strong class="num">@otherPct%</strong></span>
                     </div>
                 </div>
             </div>
@@ -188,22 +179,18 @@
             <div class="an-glass-stat">
                 <span>This month</span>
                 <strong class="num">@CompactMoney(monthTotal)</strong>
-                <small class="num">vs. @CompactMoney(prevMonthTotal) last month</small>
             </div>
             <div class="an-glass-stat">
-                <span>Calm streak</span>
-                <strong class="num">@calmDaysThisMonth @(calmDaysThisMonth == 1 ? "day" : "days")</strong>
-                <small>₹0 spent days in @today.ToString("MMM")</small>
+                <span>Calm days</span>
+                <strong class="num">@calmDaysThisMonth</strong>
             </div>
             <div class="an-glass-stat">
-                <span>Typical purchase</span>
+                <span>Avg expense</span>
                 <strong class="num">@avgTicket.ToString("C0")</strong>
-                <small>Across @Model.Count @(Model.Count == 1 ? "expense" : "expenses")</small>
             </div>
             <div class="an-glass-stat">
-                <span>All-time tracked</span>
+                <span>All-time</span>
                 <strong class="num">@CompactMoney(total)</strong>
-                <small>@categories.Count distinct categories</small>
             </div>
         </div>
 
@@ -214,28 +201,23 @@
     @* 2. 12-Month Horizon Pill Chart *@
     <section class="panel an-col-7">
         <div class="panel__header">
-            <div>
-                <p class="eyebrow">12-month horizon</p>
-                <h2>How your months ebb and flow</h2>
-            </div>
+            <h2>12-month trend</h2>
             <span class="an-horizon__avg num">
-                Avg @CompactMoney(avgMonthlyAmt) / mo
+                Avg @CompactMoney(avgMonthlyAmt)
             </span>
         </div>
 
         <div class="chart-summary" style="margin-top:0.9rem">
-            <div><span class="legend-dot" style="background:var(--mint)"></span>Calm month</div>
-            <div><span class="legend-dot" style="background:var(--ink)"></span>Current month</div>
-            <div><span class="legend-dot" style="background:var(--coral)"></span>Peak month</div>
+            <div><span class="legend-dot" style="background:var(--mint)"></span>Calm</div>
+            <div><span class="legend-dot" style="background:var(--ink)"></span>Current</div>
+            <div><span class="legend-dot" style="background:var(--coral)"></span>Peak</div>
         </div>
 
         <div class="an-horizon">
             <div class="an-horizon__stage">
                 @if (avgMonthlyAmt > 0)
                 {
-                    <div class="an-horizon__avg-line" style="bottom: @F(avgLineBottomPct)%">
-                        <span class="an-horizon__avg-tag num">Comfort line · @CompactMoney(avgMonthlyAmt)</span>
-                    </div>
+                    <div class="an-horizon__avg-line" style="bottom: @F(avgLineBottomPct)%"></div>
                 }
                 @foreach (var m in months)
                 {
@@ -244,11 +226,10 @@
                     var isPeak = m.Amount == peakMonthAmt && m.Amount > 0;
                     var isCalm = m.Amount > 0 && m.Amount <= avgMonthlyAmt * 0.85m && !isCurrent;
                     var barMod = isPeak ? "an-month-bar--peak" : isCurrent ? "an-month-bar--current" : isCalm ? "an-month-bar--calm" : "";
-                    var mood = isPeak ? "Highest month" : isCurrent ? "In progress" : isCalm ? "Calm month" : m.Amount == 0 ? "No spend" : "Steady pace";
                     <div class="an-month-col" tabindex="0" style="--bar-h: @F(hPct)%" aria-label="@m.FullName: @m.Amount.ToString("C0")">
                         <div class="an-month-tip">
                             <strong class="num">@m.Amount.ToString("C0")</strong>
-                            <span>@m.FullName · @mood</span>
+                            <span>@m.FullName</span>
                         </div>
                         <div class="an-month-bar @barMod" style="height: @F(hPct)%"></div>
                     </div>
@@ -266,11 +247,7 @@
     @* 3. Category Donut & Visual Story *@
     <section class="panel an-col-5">
         <div class="panel__header">
-            <div>
-                <p class="eyebrow">Category breakdown</p>
-                <h2>Where your money goes</h2>
-            </div>
-            <span class="days-left">@topCategories.Count top areas</span>
+            <h2>Categories</h2>
         </div>
 
         <div class="an-donut-wrap">
@@ -299,7 +276,6 @@
                 </svg>
                 <div class="an-donut__center">
                     <strong class="num">@CompactMoney(total)</strong>
-                    <span>Total flow</span>
                 </div>
             </div>
 
@@ -333,11 +309,8 @@
     @* 4. Weekly Habit Capsules & 14-Day Mood Strip *@
     <section class="panel an-col-6">
         <div class="panel__header">
-            <div>
-                <p class="eyebrow">Weekly habit</p>
-                <h2>@dowFull[peakDowIndex] are your biggest days</h2>
-            </div>
-            <span class="days-left num">@weekendSharePct% on weekends</span>
+            <h2>@dowFull[peakDowIndex] peak</h2>
+            <span class="days-left num">@weekendSharePct% weekends</span>
         </div>
 
         <div class="an-week-capsules">
@@ -357,10 +330,6 @@
         </div>
 
         <div class="an-habit-strip">
-            <div class="d-flex justify-content-between align-items-center">
-                <span class="eyebrow mb-0">Last 14 days activity pulse</span>
-                <span style="font-size:0.62rem;color:var(--ink-soft)">Mint = ₹0 calm day · Coral = high spend</span>
-            </div>
             <div class="an-habit-dots">
                 @foreach (var d in last14Days)
                 {
@@ -382,10 +351,7 @@
     @* 5. Payment Flow & Biggest Moments *@
     <section class="panel an-col-6">
         <div class="panel__header">
-            <div>
-                <p class="eyebrow">Payment methods &amp; peaks</p>
-                <h2>How you pay &amp; top moments</h2>
-            </div>
+            <h2>Payment &amp; peaks</h2>
             <a asp-action="Expenses" asp-route-sort="price_desc" class="text-link">
                 See all
                 <svg class="i" style="width:15px;height:15px"><use href="#i-arrow-up-right" /></svg>
@@ -410,13 +376,11 @@
                         <span class="num" style="color:var(--coral)">@pct%</span>
                     </div>
                     <strong class="num">@CompactMoney(m.Amount)</strong>
-                    <small>@Model.Count(e => e.PaymentMode == m.Mode) @(Model.Count(e => e.PaymentMode == m.Mode) == 1 ? "expense" : "expenses")</small>
                 </div>
             }
         </div>
 
-        <div class="mt-4 pt-2">
-            <p class="eyebrow mb-2">Biggest single expenses (click to edit)</p>
+        <div class="mt-3 pt-1">
             <div class="transaction-list" style="margin-top:0">
                 @{
                     var topSpends = Model.OrderByDescending(e => e.Price).Take(4).ToList();
@@ -437,7 +401,7 @@
                         <span class="an-rank-badge">0@(i + 1)</span>
                         <div class="transaction__details">
                             <p>@e.Title</p>
-                            <span>@e.Category · @e.Date.ToString("d MMM yyyy") · @e.PaymentMode.DisplayName()</span>
+                            <span>@e.Category</span>
                         </div>
                         <strong class="num">@e.Price?.ToString("C0")</strong>
                     </button>

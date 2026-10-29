@@ -9,10 +9,7 @@
 <dialog id="expense-dialog" class="sheet" aria-labelledby="expense-dialog-title">
     <form asp-controller="User" asp-action="Expenses" method="post">
         <div class="modal__header">
-            <div>
-                <p class="eyebrow" id="expense-dialog-eyebrow">@(editing ? "Update expense" : "New expense")</p>
-                <h2 id="expense-dialog-title">@(editing ? "Edit expense" : "Add an expense")</h2>
-            </div>
+            <h2 id="expense-dialog-title">@(editing ? "Edit expense" : "Add an expense")</h2>
             <button type="button" class="button button--icon" aria-label="Close" onclick="this.closest('dialog').close()">
                 <svg class="i"><use href="#i-close" /></svg>
             </button>

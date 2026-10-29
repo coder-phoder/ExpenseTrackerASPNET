@@ -60,9 +60,9 @@
 }
 
 .an-hero__headline {
-  margin: 0.4rem 0 0.6rem;
+  margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(2rem, 3.6vw, 3rem);
+  font-size: clamp(2.1rem, 3.8vw, 3.1rem);
   font-weight: 400;
   line-height: 1.06;
   letter-spacing: -0.03em;
@@ -73,27 +73,19 @@
   color: var(--mint);
 }
 
-.an-hero__sub {
-  max-width: 38rem;
-  margin: 0;
-  color: rgba(255, 255, 255, 0.68);
-  font-size: 0.84rem;
-  line-height: 1.6;
-}
-
 .an-split-box {
-  margin-top: 1.6rem;
-  padding-top: 1.35rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .an-split-bar {
   display: flex;
-  height: 0.7rem;
+  height: 0.75rem;
   gap: 0.35rem;
   border-radius: 999px;
   overflow: hidden;
-  margin: 0.65rem 0 0.9rem;
+  margin: 0 0 0.9rem;
 }
 
 .an-split-bar span {
@@ -106,15 +98,15 @@
 .an-split-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.25rem;
+  gap: 1.4rem;
 }
 
 .an-split-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.74rem;
-  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.76);
 }
 
 .an-split-dot {
@@ -142,33 +134,25 @@
   border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(10px);
-  padding: 1.1rem 1.15rem;
+  padding: 1.15rem 1.25rem;
 }
 
 .an-glass-stat span {
   display: block;
-  color: rgba(255, 255, 255, 0.56);
-  font-size: 0.62rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
 }
 
 .an-glass-stat strong {
   display: block;
   margin-top: 0.35rem;
   font-family: var(--font-display);
-  font-size: 1.65rem;
+  font-size: 1.85rem;
   font-weight: 400;
   line-height: 1.05;
-}
-
-.an-glass-stat small {
-  display: block;
-  margin-top: 0.3rem;
-  color: var(--mint);
-  font-size: 0.65rem;
-  font-weight: 600;
 }
 
 /* 2. 12-Month Horizon Pill Chart */
@@ -182,11 +166,11 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.32rem 0.7rem;
+  padding: 0.35rem 0.75rem;
   border-radius: 999px;
   background: var(--paper);
   border: 1px solid var(--line);
-  font-size: 0.66rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: var(--ink-soft);
 }
@@ -198,7 +182,7 @@
   grid-template-columns: repeat(12, minmax(0, 1fr));
   align-items: end;
   gap: 0.55rem;
-  padding: 1.8rem 0.25rem 0;
+  padding: 1.4rem 0.25rem 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -209,18 +193,6 @@
   border-top: 1.5px dashed var(--coral);
   pointer-events: none;
   z-index: 1;
-}
-
-.an-horizon__avg-tag {
-  position: absolute;
-  right: 0;
-  top: -1.35rem;
-  padding: 0.15rem 0.48rem;
-  border-radius: 0.4rem;
-  background: var(--coral-soft);
-  color: #b64d39;
-  font-size: 0.58rem;
-  font-weight: 700;
 }
 
 .an-month-col {

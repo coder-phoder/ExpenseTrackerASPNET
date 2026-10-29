@@ -84,7 +84,6 @@
                 </a>
 
                 <nav class="sidebar__nav" aria-label="Main navigation">
-                    <p class="eyebrow sidebar__label">Workspace</p>
                     @foreach (var item in navItems)
                     {
                         var active = item.Action == current;
@@ -106,18 +105,6 @@
                 </nav>
 
                 <div class="sidebar__bottom">
-                    <div class="insight-card">
-                        <span class="insight-card__icon">
-                            <svg class="i" style="width:18px;height:18px"><use href="#i-goals" /></svg>
-                        </span>
-                        <p class="insight-card__title">@DateTime.Today.ToString("MMMM") insight</p>
-                        <p class="insight-card__copy">Your spending rhythm and analytics are synced in real time.</p>
-                        <a asp-controller="User" asp-action="Analytics" class="insight-card__link">
-                            See your analytics
-                            <svg class="i" style="width:15px;height:15px"><use href="#i-arrow-up-right" /></svg>
-                        </a>
-                    </div>
-
                     <a asp-controller="User" asp-action="Profile"
                        class="nav-item @(current == "Profile" ? "nav-item--active" : "")">
                         <svg class="i"><use href="#i-settings" /></svg>
@@ -128,7 +115,6 @@
                         <a asp-controller="User" asp-action="Profile" class="avatar" title="Profile (@name)">@initials</a>
                         <div class="min-w-0">
                             <p>@name</p>
-                            <span>Personal account</span>
                         </div>
                         <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">
                             <button type="submit" class="icon-btn" title="Logout" aria-label="Logout">
@@ -162,7 +148,7 @@
                             <input type="search"
                                    name="q"
                                    id="fd-global-search"
-                                   placeholder="Search expenses (⌘K)"
+                                   placeholder="Search"
                                    value="@Context.Request.Query["q"]"
                                    aria-label="Search expenses" />
                         </form>

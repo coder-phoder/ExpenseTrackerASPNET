@@ -13,8 +13,6 @@ document.addEventListener('click', e => {
         if (field) field.value = d[name.toLowerCase()] ?? '';
     }
     const editing = d.id !== '0';
-    const eyebrow = document.getElementById('expense-dialog-eyebrow');
-    if (eyebrow) eyebrow.textContent = editing ? 'Update expense' : 'New expense';
     dialog.querySelector('h2').textContent = editing ? 'Edit expense' : 'Add an expense';
     form.querySelector('[type=submit]').textContent = editing ? 'Save changes' : 'Save expense';
     dialog.showModal();

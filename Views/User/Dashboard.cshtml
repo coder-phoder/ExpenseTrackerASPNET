@@ -26,7 +26,6 @@
 
     var deltaPct = beforeToDate > 0 ? (double)((beforeToDate - spent) / beforeToDate * 100m) : 6.4;
     var deltaAbs = Math.Abs(deltaPct).ToString("0.0", CultureInfo.InvariantCulture);
-    var deltaDiff = Math.Abs(beforeToDate - spent);
 
     var onlineSpent = Model.MonthExpenses.Where(e => e.PaymentMode != PaymentMode.Cash).Sum(e => e.Price ?? 0m);
     var cashSpent = Model.MonthExpenses.Where(e => e.PaymentMode == PaymentMode.Cash).Sum(e => e.Price ?? 0m);
@@ -52,17 +51,6 @@
         2 => "blue",
         _ => "coral"
     };
-
-    string RelativeNote(Expense e)
-    {
-        var dayLabel = (today.DayNumber - e.Date.DayNumber) switch
-        {
-            0 => "Today",
-            1 => "Yesterday",
-            _ => e.Date.ToString("MMM d")
-        };
-        return $"{e.Category} · {dayLabel} · {e.PaymentMode.DisplayName()}";
-    }
 
     // Build smooth cubic Bezier curves for Cashflow chart (Current vs Previous window)
     (string AreaPath, string CurPath, string PrevPath, double FocusX, double CurY, double PrevY, string TipDate, string TipCur, string TipPrev, string[] Dates) BuildCashflow(int windowDays)
@@ -204,7 +192,6 @@
                     <svg class="i" style="width:14px;height:14px"><use href="#i-arrow-up-right" /></svg>
                     @deltaAbs%
                 </span>
-                <p>@(spent <= beforeToDate ? $"Saved {deltaDiff:C0} vs last month pace" : $"+{deltaDiff:C0} vs last month pace")</p>
             </div>
         </div>
 
@@ -213,24 +200,18 @@
                 <span class="account-row__icon">
                     <svg class="i" style="width:18px;height:18px"><use href="#i-wallet" /></svg>
                 </span>
-                <div>
-                    <p>Online &amp; UPI</p>
-                    <span>•• Digital</span>
-                </div>
+                <p>Online &amp; UPI</p>
                 <strong class="num">@onlineSpent.ToString("C0")</strong>
             </div>
             <div class="account-row">
                 <span class="account-row__icon">
                     <svg class="i" style="width:18px;height:18px"><use href="#i-card" /></svg>
                 </span>
-                <div>
-                    <p>Cash &amp; Wallet</p>
-                    <span>•• Direct</span>
-                </div>
+                <p>Cash &amp; Wallet</p>
                 <strong class="num">@cashSpent.ToString("C0")</strong>
             </div>
             <a asp-action="Analytics" class="manage-link">
-                Manage accounts
+                Analytics
                 <svg class="i" style="width:15px;height:15px"><use href="#i-arrow-up-right" /></svg>
             </a>
         </div>
@@ -249,7 +230,6 @@
             </div>
             <p>Monthly budget</p>
             <strong class="num">@budgetTarget.ToString("C0")</strong>
-            <span class="metric-note">vs. @prevFull.ToString("C0") last month</span>
         </article>
 
         <article class="metric-card">
@@ -261,7 +241,6 @@
             </div>
             <p>Money out</p>
             <strong class="num">@spent.ToString("C0")</strong>
-            <span class="metric-note">vs. @beforeToDate.ToString("C0") last month</span>
         </article>
 
         <article class="metric-card metric-card--accent">
@@ -279,14 +258,11 @@
 
     <section class="panel cashflow">
         <div class="panel__header">
-            <div>
-                <p class="eyebrow">Cash movement</p>
-                <h2>Your month at a glance</h2>
-            </div>
+            <h2>Cashflow</h2>
             <div class="segmented" aria-label="Chart period">
                 <button type="button" data-cashflow-tab="week">Week</button>
                 <button type="button" class="segmented__active" data-cashflow-tab="month">Month</button>
-                <a asp-action="Analytics" class="text-decoration-none" style="border-radius:0.5rem;padding:0.38rem 0.65rem;color:#7b847f;font-size:0.6rem;font-weight:700">Year</a>
+                <a asp-action="Analytics" class="text-decoration-none" style="border-radius:0.5rem;padding:0.38rem 0.65rem;color:#7b847f;font-size:0.65rem;font-weight:700">Year</a>
             </div>
         </div>
 
@@ -299,13 +275,9 @@
                 <span class="legend-dot legend-dot--spend"></span>
                 Spending <strong class="num">@spent.ToString("C0")</strong>
             </div>
-            <span class="chart-summary__note num">+@savedThisMonth.ToString("C0") net cushion</span>
         </div>
 
         <div class="chart" id="spendy-chart-month" aria-label="Income and spending chart for this month">
-            <div class="chart__labels">
-                <span>High</span><span>Mid</span><span>Low</span><span>₹0</span>
-            </div>
             <svg viewBox="0 0 720 230" preserveAspectRatio="none" role="img">
                 <title>Monthly spending trends</title>
                 <line x1="0" y1="18" x2="720" y2="18" class="grid-line" />
@@ -321,8 +293,7 @@
             </svg>
             <div class="chart-tooltip">
                 <span>@cfMonth.TipDate</span>
-                <strong class="num">@cfMonth.TipCur current</strong>
-                <p class="num">@cfMonth.TipPrev prior</p>
+                <strong class="num">@cfMonth.TipCur</strong>
             </div>
             <div class="chart__dates">
                 @foreach (var d in cfMonth.Dates)
@@ -333,9 +304,6 @@
         </div>
 
         <div class="chart" id="spendy-chart-week" aria-label="Income and spending chart for this week" hidden>
-            <div class="chart__labels">
-                <span>High</span><span>Mid</span><span>Low</span><span>₹0</span>
-            </div>
             <svg viewBox="0 0 720 230" preserveAspectRatio="none" role="img">
                 <title>Weekly spending trends</title>
                 <line x1="0" y1="18" x2="720" y2="18" class="grid-line" />
@@ -351,8 +319,7 @@
             </svg>
             <div class="chart-tooltip">
                 <span>@cfWeek.TipDate</span>
-                <strong class="num">@cfWeek.TipCur current</strong>
-                <p class="num">@cfWeek.TipPrev prior</p>
+                <strong class="num">@cfWeek.TipCur</strong>
             </div>
             <div class="chart__dates">
                 @foreach (var d in cfWeek.Dates)
@@ -365,10 +332,7 @@
 
     <section class="panel spending">
         <div class="panel__header">
-            <div>
-                <p class="eyebrow">Calendar</p>
-                <h2 class="num">@spent.ToString("C0") of @budgetTarget.ToString("C0")</h2>
-            </div>
+            <h2 class="num">@spent.ToString("C0") <span class="muted" style="font-size:0.75em">/ @budgetTarget.ToString("C0")</span></h2>
             <span class="days-left">@daysRemaining @(daysRemaining == 1 ? "day" : "days") left</span>
         </div>
         <div class="budget-total">
@@ -380,7 +344,7 @@
                 <div class="budget-row">
                     <div class="budget-row__heading">
                         <p>@row.Label</p>
-                        <span class="num"><strong>@row.Spent.ToString("C0")</strong> / @row.Cap.ToString("C0")</span>
+                        <span class="num"><strong>@row.Spent.ToString("C0")</strong></span>
                     </div>
                     <div class="budget-bar">
                         <span class="budget-bar__fill budget-bar__fill--@row.Tone" style="width: @(row.Percent)%"></span>
@@ -396,10 +360,7 @@
 
     <section class="panel transactions">
         <div class="panel__header">
-            <div>
-                <p class="eyebrow">Activity</p>
-                <h2>Latest expenses</h2>
-            </div>
+            <h2>Recent expenses</h2>
             <a asp-action="Expenses" class="text-link">
                 View all
                 <svg class="i" style="width:15px;height:15px"><use href="#i-arrow-up-right" /></svg>
@@ -408,7 +369,7 @@
         <div class="transaction-list">
             @if (Model.Recent.Count == 0)
             {
-                <p class="muted small mb-0 py-3">No expenses logged yet. Click <strong>Add expense</strong> above to record your first one.</p>
+                <p class="muted mb-0 py-3">No expenses yet.</p>
             }
             else
             {
@@ -433,9 +394,9 @@
                         </span>
                         <div class="transaction__details">
                             <p>@item.Title</p>
-                            <span>@RelativeNote(item)</span>
+                            <span>@item.Category</span>
                         </div>
-                        <strong class="num">− @item.Price?.ToString("C2")</strong>
+                        <strong class="num">− @item.Price?.ToString("C0")</strong>
                     </button>
                 }
             }
@@ -445,13 +406,12 @@
     <aside class="right-rail">
         <section class="goal-card">
             <div class="goal-card__top">
-                <span class="eyebrow eyebrow--light">Analytics</span>
+                <span class="eyebrow eyebrow--light">Savings</span>
                 <a asp-action="Analytics" aria-label="Open analytics">
                     <svg class="i" style="width:18px;height:18px"><use href="#i-arrow-up-right" /></svg>
                 </a>
             </div>
             <h2>A little place by the sea.</h2>
-            <p>Emergency &amp; travel fund</p>
             <div class="goal-visual">
                 <svg viewBox="0 0 160 160" role="img" aria-label="@goalPct percent of target saved">
                     <circle cx="80" cy="80" r="62" class="goal-track" />
@@ -459,7 +419,6 @@
                 </svg>
                 <div>
                     <strong>@goalPct%</strong>
-                    <span>saved</span>
                 </div>
             </div>
             <div class="goal-card__numbers">
@@ -473,17 +432,14 @@
                 </div>
             </div>
             <a asp-action="Analytics" class="goal-button text-decoration-none">
-                <span>Open analytics</span>
+                <span>Analytics</span>
                 <svg class="i" style="width:17px;height:17px"><use href="#i-arrow-up-right" /></svg>
             </a>
         </section>
 
         <section class="panel recurring">
             <div class="panel__header">
-                <div>
-                    <p class="eyebrow">Coming up</p>
-                    <h2>Recurring</h2>
-                </div>
+                <h2>Recurring</h2>
                 <span class="recurring__total num">@recurringTotal.ToString("C0")</span>
             </div>
             @if (billExpenses.Count > 0)
@@ -501,7 +457,6 @@
                         </span>
                         <div class="min-w-0">
                             <p class="text-truncate">@bill.Title</p>
-                            <span>@bill.PaymentMode.DisplayName() · @bill.Category</span>
                         </div>
                         <strong class="num">@bill.Price?.ToString("C0")</strong>
                     </div>
@@ -512,13 +467,13 @@
                 <div class="recurring-item">
                     <span class="recurring-item__date"><strong>22</strong>@today.ToString("MMM").ToUpperInvariant()</span>
                     <span class="recurring-item__icon"><svg class="i" style="width:18px;height:18px"><use href="#i-repeat" /></svg></span>
-                    <div><p>Apartment WiFi</p><span>Autopay</span></div>
+                    <div><p>Apartment WiFi</p></div>
                     <strong class="num">₹999</strong>
                 </div>
                 <div class="recurring-item">
                     <span class="recurring-item__date"><strong>25</strong>@today.ToString("MMM").ToUpperInvariant()</span>
                     <span class="recurring-item__icon recurring-item__icon--coral"><svg class="i" style="width:18px;height:18px"><use href="#i-repeat" /></svg></span>
-                    <div><p>Electricity &amp; Utilities</p><span>Autopay</span></div>
+                    <div><p>Electricity &amp; Utilities</p></div>
                     <strong class="num">₹1,949</strong>
                 </div>
             }

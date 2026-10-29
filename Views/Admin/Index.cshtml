@@ -28,7 +28,6 @@
     var total = users.Sum(u => u.TotalSpent);
     var expenseCount = users.Sum(u => u.ExpenseCount);
     var active = users.Count(u => Status(u) == "active");
-    var notStarted = users.Count(u => u.ExpenseCount == 0);
     var topSpend = users.Select(u => u.TotalSpent).DefaultIfEmpty().Max();
     var monthStart = new DateOnly(today.Year, today.Month, 1);
     decimal Spent(DateOnly from, DateOnly to) => days.Values.Where(d => d.Date >= from && d.Date < to).Sum(d => d.Amount);
@@ -91,20 +90,14 @@
                 <span class="lp-rise"><span style="--d:.05s" data-countup="@Math.Round(total)" data-format="money">@total.ToString("C0")</span></span>
                 <span class="lp-rise"><span class="lp-serif c-blue" style="--d:.16s">tracked so far<span class="c-orange">.</span></span></span>
             </h1>
-            <p class="lp-lede lp-fade" data-reveal style="--d:.3s">Everything people have logged in Spendy, across every account.</p>
         </div>
 
         <div class="ad-kpis lp-fade" data-reveal style="--d:.42s">
-            <div class="t-sky"><span>Users</span><strong data-countup="@users.Count">@users.Count.ToString("N0")</strong>
-                <small>@(users.Count == 0 ? "No one has registered yet" : notStarted == 0 ? "All have logged an expense" : $"{notStarted:N0} yet to log an expense")</small></div>
-            <div class="t-mint"><span>Active users</span><strong data-countup="@active">@active.ToString("N0")</strong>
-                <small>@(users.Count == 0 ? "Expense in the last 30 days" : $"{(decimal)active / users.Count:P0} of users, last 30 days")</small></div>
-            <div class="t-peach"><span>Expenses</span><strong data-countup="@expenseCount">@expenseCount.ToString("N0")</strong>
-                <small>@days.Values.Where(d => d.Date >= monthStart).Sum(d => d.Expenses).ToString("N0") this month</small></div>
-            <div class="t-lilac"><span>This month</span><strong data-countup="@Math.Round(monthAmount)" data-format="money">@monthAmount.ToString("C0")</strong>
-                <small>@Spent(monthStart.AddMonths(-1), monthStart).ToString("C0") last month</small></div>
+            <div class="t-sky"><span>Users</span><strong data-countup="@users.Count">@users.Count.ToString("N0")</strong></div>
+            <div class="t-mint"><span>Active users</span><strong data-countup="@active">@active.ToString("N0")</strong></div>
+            <div class="t-peach"><span>Expenses</span><strong data-countup="@expenseCount">@expenseCount.ToString("N0")</strong></div>
+            <div class="t-lilac"><span>This month</span><strong data-countup="@Math.Round(monthAmount)" data-format="money">@monthAmount.ToString("C0")</strong></div>
         </div>
-        <p class="ad-caption lp-fade" data-reveal style="--d:.55s">The columns behind this page are real: one per day of expenses logged, today on the right.</p>
     </section>
 
     <section id="activity" class="ad-section ad-activity lp-pad">
@@ -115,11 +108,10 @@
             </div>
 
             <div class="ad-glass lp-fade" data-reveal>
-                <div class="ad-glass__head">
-                    <p>Expenses by date across all users, last 12 months</p>
+                <div class="ad-glass__head justify-content-end">
                     @if (busiest is not null)
                     {
-                        <div class="ad-legend" aria-hidden="true">0 @for (var l = 0; l <= 4; l++) { <i class="lv@(l)"></i> } @busiest.Expenses a day</div>
+                        <div class="ad-legend" aria-hidden="true">0 @for (var l = 0; l <= 4; l++) { <i class="lv@(l)"></i> } @busiest.Expenses</div>
                     }
                 </div>
                 @* Hidden from screen readers: the table below carries the same counts. *@
@@ -293,7 +285,6 @@
             <div class="ad-spend__grid">
                 <div class="ad-dark lp-fade" data-reveal>
                     <h3>Payment modes</h3>
-                    <p>Share of all spending, all users</p>
                     @if (total == 0)
                     {
                         <p class="ad-muted">No expenses yet.</p>
@@ -325,7 +316,6 @@
 
                 <div class="ad-dark lp-fade" data-reveal style="--d:.1s">
                     <h3>Top categories</h3>
-                    <p>By amount, all users</p>
                     @if (total == 0)
                     {
                         <p class="ad-muted">No expenses yet.</p>
@@ -336,10 +326,6 @@
                             <div><span>@c.Key</span><span class="num">@c.Amount.ToString("C0") <span class="ad-muted">@((c.Amount / total).ToString("P0"))</span></span></div>
                             <i style="--w: @Pct(c.Amount, Model.Categories[0].Amount)"></i>
                         </div>
-                    }
-                    @if (Model.Categories.Count > 6)
-                    {
-                        <p class="ad-muted">and @(Model.Categories.Count - 6) more</p>
                     }
                 </div>
             </div>

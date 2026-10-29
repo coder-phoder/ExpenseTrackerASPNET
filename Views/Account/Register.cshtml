@@ -9,7 +9,6 @@
         <span class="lp-rise"><span style="--d:.05s">Create your</span></span>
         <span class="lp-rise"><span class="lp-serif c-violet" style="--d:.16s">account<span class="c-orange">.</span></span></span>
     </h1>
-    <p class="lp-lede lp-fade" data-reveal style="--d:.3s">One private place for every expense, from chai to rent.</p>
     <div class="au-meter" aria-hidden="true">
         <div data-fields="Name"><i></i><span>Name</span></div>
         <div data-fields="Email"><i></i><span>Email</span></div>
@@ -32,10 +31,9 @@
         <div class="au-field">
             <label asp-for="Password"></label>
             <div class="au-pw">
-                <input asp-for="Password" class="au-input" autocomplete="new-password" aria-describedby="pw-hint" />
+                <input asp-for="Password" class="au-input" autocomplete="new-password" />
                 <button type="button" class="au-show" aria-label="Show password">Show</button>
             </div>
-            <span id="pw-hint" class="au-hint">At least 8 characters.</span>
             <span asp-validation-for="Password" class="au-err"></span>
         </div>
         <div class="au-field">

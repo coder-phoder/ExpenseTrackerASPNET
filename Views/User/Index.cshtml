@@ -106,15 +106,14 @@
                 <div class="ap-body">
                     <div class="ap-h1">Analytics</div>
                     <div class="ap-tiles">
-                        <div class="ap-card"><div class="ap-muted">Total spent</div><div class="ap-val">₹4,16,980</div><div class="ap-muted">640 expenses</div></div>
-                        <div class="ap-card"><div class="ap-muted">This month</div><div class="ap-val">₹12,480</div><div class="ap-muted">₹41,300 last month</div></div>
-                        <div class="ap-card"><div class="ap-muted">Daily average</div><div class="ap-val">₹3,120</div><div class="ap-muted">so far this month</div></div>
-                        <div class="ap-card"><div class="ap-muted">Average expense</div><div class="ap-val">₹652</div><div class="ap-muted">all time</div></div>
+                        <div class="ap-card"><div class="ap-muted">Total spent</div><div class="ap-val">₹4,16,980</div></div>
+                        <div class="ap-card"><div class="ap-muted">This month</div><div class="ap-val">₹12,480</div></div>
+                        <div class="ap-card"><div class="ap-muted">Daily average</div><div class="ap-val">₹3,120</div></div>
+                        <div class="ap-card"><div class="ap-muted">Average expense</div><div class="ap-val">₹652</div></div>
                     </div>
                     <div class="ap-row">
                         <div class="ap-card">
                             <div class="ap-h6">Monthly spending</div>
-                            <div class="ap-muted">Last 12 months</div>
                             <div class="ap-chart" data-reveal>
                                 @foreach (var (pos, label) in ticks)
                                 {
@@ -131,16 +130,15 @@
                         </div>
                         <div class="ap-card">
                             <div class="ap-h6">Payment mode</div>
-                            <div class="ap-muted">Share of all spending</div>
                             <div class="ap-split" data-reveal><div class="on" style="flex:312735"></div><div class="cash" style="flex:104245"></div></div>
                             <div class="ap-legend">
                                 <span><span class="ap-sw on"></span>Online <strong>₹3,12,735</strong> <span class="ap-muted">75%</span></span>
                                 <span><span class="ap-sw cash"></span>Cash <strong>₹1,04,245</strong> <span class="ap-muted">25%</span></span>
                             </div>
                             <div class="ap-h6" style="margin:22px 0 6px">Largest expenses</div>
-                            <div class="ap-lg"><div>Rent<small>01 Oct 2026 · Online</small></div><div class="num">₹18,000.00</div></div>
-                            <div class="ap-lg"><div>Laptop repair<small>14 Sep 2026 · Online</small></div><div class="num">₹6,500.00</div></div>
-                            <div class="ap-lg"><div>Flight to Pune<small>08 Aug 2026 · Online</small></div><div class="num">₹4,820.00</div></div>
+                            <div class="ap-lg"><div>Rent</div><div class="num">₹18,000.00</div></div>
+                            <div class="ap-lg"><div>Laptop repair</div><div class="num">₹6,500.00</div></div>
+                            <div class="ap-lg"><div>Flight to Pune</div><div class="num">₹4,820.00</div></div>
                         </div>
                     </div>
                 </div>
@@ -236,12 +234,11 @@
                         <div class="pm-layer pm-an">
                             <div class="pm-h1">Analytics</div>
                             <div class="pm-tiles">
-                                <div class="pm-card"><div class="pm-muted">This month</div><div class="pm-val">₹13,720</div><div class="pm-muted">₹41,300 last month</div></div>
-                                <div class="pm-card"><div class="pm-muted">Daily average</div><div class="pm-val">₹3,430</div><div class="pm-muted">so far this month</div></div>
+                                <div class="pm-card"><div class="pm-muted">This month</div><div class="pm-val">₹13,720</div></div>
+                                <div class="pm-card"><div class="pm-muted">Daily average</div><div class="pm-val">₹3,430</div></div>
                             </div>
                             <div class="pm-card pm-mb">
                                 <div class="pm-h6">Monthly spending</div>
-                                <div class="pm-muted">Last 12 months</div>
                                 <div class="pm-chart">
                                     @foreach (var (pos, label) in ticks)
                                     {
@@ -259,7 +256,6 @@
                             </div>
                             <div class="pm-card">
                                 <div class="pm-h6">Payment mode</div>
-                                <div class="pm-muted">Share of all spending</div>
                                 <div class="pm-split"><div class="on" style="flex:313975"></div><div class="cash" style="flex:104245"></div></div>
                                 <div class="pm-legend">
                                     <span><span class="pm-sw on"></span>Online <strong>₹3,13,975</strong> <span class="pm-muted">75%</span></span>
