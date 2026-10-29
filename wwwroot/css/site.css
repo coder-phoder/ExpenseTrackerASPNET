@@ -1929,7 +1929,31 @@ svg.i {
   gap: 0.375rem;
 }
 
-/* Calendar: Mon–Sun plus a weekly total column */
+/* Calendar: Mon–Sun plus a weekly total column + Heatmap */
+.cal-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  margin-bottom: 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.cal-legend i {
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--line);
+}
+
+.cal-heat-1 { background: color-mix(in srgb, var(--mint) 28%, var(--surface-raised)) !important; border-color: color-mix(in srgb, var(--mint) 55%, var(--line)) !important; }
+.cal-heat-2 { background: color-mix(in srgb, var(--sand) 42%, var(--surface-raised)) !important; border-color: color-mix(in srgb, var(--sand) 70%, var(--line)) !important; }
+.cal-heat-3 { background: color-mix(in srgb, var(--coral) 38%, var(--surface-raised)) !important; border-color: color-mix(in srgb, var(--coral) 65%, var(--line)) !important; }
+.cal-heat-4 { background: var(--coral) !important; border-color: var(--coral) !important; color: #fff !important; }
+.cal-heat-4 span { color: rgba(255, 255, 255, 0.9) !important; }
+
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(0, 1.3fr);

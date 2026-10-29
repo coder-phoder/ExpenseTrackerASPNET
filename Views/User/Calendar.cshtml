@@ -4,6 +4,8 @@
     var month = Model.Month;
     var today = DateOnly.FromDateTime(DateTime.Today);
     var totals = Model.Expenses.GroupBy(e => e.Date).ToDictionary(g => g.Key, g => g.Sum(e => e.Price ?? 0));
+    var maxDay = totals.Values.DefaultIfEmpty(0).Max();
+    string Heat(decimal v) => v <= 0 || maxDay <= 0 ? "" : $"cal-heat-{Math.Clamp((int)Math.Ceiling(v / maxDay * 4m), 1, 4)}";
 }
 
 <div class="page-head">
@@ -20,6 +22,11 @@
 </div>
 
 <section class="card-x cal-card">
+    <div class="cal-legend">
+        <span>Low</span>
+        <i class="cal-heat-1"></i><i class="cal-heat-2"></i><i class="cal-heat-3"></i><i class="cal-heat-4"></i>
+        <span>High</span>
+    </div>
     <div class="cal-grid">
         @foreach (var name in new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Total" })
         {
@@ -38,7 +45,7 @@
                 var date = day.ToString("yyyy-MM-dd");
                 var hasTotal = totals.TryGetValue(day, out var total);
                 weekTotal += total;
-                <a asp-action="Expenses" asp-route-date="@date" class="cal-day @(day == today ? "today" : null)" title="@day.ToString("dd MMM yyyy")"
+                <a asp-action="Expenses" asp-route-date="@date" class="cal-day @Heat(total) @(day == today ? "today" : null)" title="@day.ToString("dd MMM yyyy")"
                    data-date="@date" data-bs-toggle="modal" data-bs-target="#dayModal">
                     @day.Day
                     @if (hasTotal)
