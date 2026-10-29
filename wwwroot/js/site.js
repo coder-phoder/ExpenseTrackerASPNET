@@ -15,11 +15,32 @@ document.addEventListener('click', e => {
     const editing = d.id !== '0';
     dialog.querySelector('h2').textContent = editing ? 'Edit expense' : 'Add an expense';
     form.querySelector('[type=submit]').textContent = editing ? 'Save changes' : 'Save expense';
+    document.getElementById('hist-dialog')?.close();
     dialog.showModal();
 });
 
 document.addEventListener('click', e => {
-    if (e.target.id === 'expense-dialog') e.target.close();
+    if (e.target.id === 'expense-dialog' || e.target.id === 'hist-dialog') e.target.close();
+});
+
+// 6. Histogram bar click -> opens #hist-dialog showing day/week expenses sorted high to low
+document.addEventListener('click', e => {
+    const bar = e.target.closest('[data-hist-title]');
+    if (!bar) return;
+    const dialog = document.getElementById('hist-dialog');
+    if (!dialog) return;
+    const from = Number(bar.dataset.from);
+    const to = Number(bar.dataset.to);
+    dialog.querySelector('#hist-dialog-title').textContent = bar.dataset.histTitle;
+    let shown = 0;
+    dialog.querySelectorAll('[data-hist-row]').forEach(row => {
+        const day = Number(row.dataset.histRow);
+        const match = day >= from && day <= to;
+        row.style.display = match ? '' : 'none';
+        if (match) shown++;
+    });
+    dialog.querySelector('#hist-empty').hidden = shown > 0;
+    dialog.showModal();
 });
 
 // 2. Global keyboard shortcut: Cmd/Ctrl + K focuses the header search input.

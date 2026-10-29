@@ -61,16 +61,17 @@
             var sDay = w * 7 + 1;
             var eDay = Math.Min(daysThis, (w + 1) * 7);
             var amt = dailyBars.Skip(sDay - 1).Take(eDay - sDay + 1).Sum(b => b.Amount);
-            return (Label: $"Week {w + 1}", Range: $"{sDay}–{eDay} {first:MMM}", Amount: amt);
+            return (Label: $"Week {w + 1}", Range: $"{sDay}–{eDay} {first:MMM}", StartDay: sDay, EndDay: eDay, Amount: amt);
         })
         .ToArray();
     var maxWeekly = Math.Max(1m, weeklyBars.Max(b => b.Amount));
 
-    // Biggest expenses this month
-    var biggestExpenses = Model.MonthExpenses
+    // All expenses this month sorted in decreasing order of amount
+    var monthByPriceDesc = Model.MonthExpenses
         .OrderByDescending(e => e.Price ?? 0m)
-        .Take(3)
+        .ThenByDescending(e => e.Date)
         .ToList();
+    var biggestExpenses = monthByPriceDesc.Take(3).ToList();
 
     var newExpense = new ExpensesViewModel([], new Expense { Date = today }, Model.AllCategories);
 }
@@ -194,10 +195,13 @@
                 {
                     var hPct = b.Amount > 0 ? Math.Clamp((double)(b.Amount / maxDaily) * 100.0, 8.0, 100.0) : 3.0;
                     var isToday = b.Date == today;
-                    <div class="hist-col" title="@b.Date.ToString("d MMM"): @b.Amount.ToString("C0")">
+                    <button type="button" class="hist-col"
+                            data-hist-title="@b.Date.ToString("d MMMM yyyy") · @b.Amount.ToString("C0")"
+                            data-from="@b.Day" data-to="@b.Day"
+                            title="@b.Date.ToString("d MMM"): @b.Amount.ToString("C0")">
                         <div class="hist-bar @(isToday ? "hist-bar--today" : b.Amount > 0 ? "hist-bar--active" : "")" style="height: @F(hPct)%"></div>
-                        <span class="hist-lbl">@(b.Day == 1 || b.Day % 5 == 0 || b.Day == daysThis ? b.Day.ToString() : "")</span>
-                    </div>
+                        <span class="hist-lbl">@b.Day</span>
+                    </button>
                 }
             </div>
         </div>
@@ -207,11 +211,14 @@
                 @foreach (var w in weeklyBars)
                 {
                     var hPct = w.Amount > 0 ? Math.Clamp((double)(w.Amount / maxWeekly) * 100.0, 10.0, 100.0) : 4.0;
-                    <div class="hist-col" title="@w.Range: @w.Amount.ToString("C0")">
+                    <button type="button" class="hist-col"
+                            data-hist-title="@w.Label (@w.Range) · @w.Amount.ToString("C0")"
+                            data-from="@w.StartDay" data-to="@w.EndDay"
+                            title="@w.Range: @w.Amount.ToString("C0")">
                         <strong class="hist-val num">@w.Amount.ToString("C0")</strong>
                         <div class="hist-bar @(w.Amount > 0 ? "hist-bar--active" : "")" style="height: @F(hPct)%"></div>
                         <span class="hist-lbl">@w.Label <small class="d-none d-sm-inline">(@w.Range)</small></span>
-                    </div>
+                    </button>
                 }
             </div>
         </div>
@@ -298,6 +305,42 @@
         </section>
     </aside>
 </section>
+
+<dialog id="hist-dialog" class="sheet" aria-labelledby="hist-dialog-title">
+    <div class="modal__header">
+        <h2 id="hist-dialog-title">Spendings</h2>
+        <button type="button" class="button button--icon" aria-label="Close" onclick="this.closest('dialog').close()">
+            <svg class="i"><use href="#i-close" /></svg>
+        </button>
+    </div>
+    <div class="transaction-list" style="max-height:22rem;overflow-y:auto">
+        @for (var i = 0; i < monthByPriceDesc.Count; i++)
+        {
+            var e = monthByPriceDesc[i];
+            <button type="button"
+                    class="transaction"
+                    data-hist-row="@e.Date.Day"
+                    data-expense
+                    data-id="@e.Id"
+                    data-title="@e.Title"
+                    data-price="@e.Price"
+                    data-category="@e.Category"
+                    data-date="@e.Date.ToString("yyyy-MM-dd")"
+                    data-paymentmode="@((int)e.PaymentMode)"
+                    data-description="@e.Description">
+                <span class="transaction__icon transaction__icon--@CatTone(i)">
+                    <svg class="i"><use href="@CatIcon(e.Category)" /></svg>
+                </span>
+                <div class="transaction__details">
+                    <p>@e.Title</p>
+                    <span>@e.Category · @e.Date.ToString("d MMM") · @e.PaymentMode.DisplayName()</span>
+                </div>
+                <strong class="num">− @e.Price?.ToString("C0")</strong>
+            </button>
+        }
+        <p id="hist-empty" class="muted mb-0 py-3" hidden>No expenses recorded for this period.</p>
+    </div>
+</dialog>
 
 <partial name="_ExpenseDialog" model="newExpense" />
 
