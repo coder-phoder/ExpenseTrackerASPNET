@@ -16,15 +16,26 @@ document.addEventListener('click', e => {
     dialog.querySelector('h2').textContent = editing ? 'Edit expense' : 'Add an expense';
     form.querySelector('[type=submit]').textContent = editing ? 'Save changes' : 'Save expense';
     document.getElementById('hist-dialog')?.close();
+    document.getElementById('cat-dialog')?.close();
     dialog.showModal();
 });
 
 document.addEventListener('click', e => {
-    if (e.target.id === 'expense-dialog' || e.target.id === 'hist-dialog') e.target.close();
+    if (e.target.id === 'expense-dialog' || e.target.id === 'hist-dialog' || e.target.id === 'cat-dialog') e.target.close();
 });
 
-// 6. Histogram bar click -> opens #hist-dialog showing day/week expenses sorted high to low
+// 6. Histogram / Category click -> opens modal showing filtered expenses
 document.addEventListener('click', e => {
+    const cat = e.target.closest('[data-cat-open]');
+    if (cat) {
+        const dialog = document.getElementById('cat-dialog');
+        if (!dialog) return;
+        const name = cat.dataset.catOpen;
+        dialog.querySelector('#cat-dialog-title').textContent = cat.dataset.catTitle;
+        dialog.querySelectorAll('[data-cat-row]').forEach(r => r.style.display = r.dataset.catRow === name ? '' : 'none');
+        dialog.showModal();
+        return;
+    }
     const bar = e.target.closest('[data-hist-title]');
     if (!bar) return;
     const dialog = document.getElementById('hist-dialog');

@@ -177,22 +177,13 @@
 
 .an-horizon__stage {
   position: relative;
-  height: 14.5rem;
+  height: 16rem;
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  align-items: end;
-  gap: 0.55rem;
+  align-items: stretch;
+  gap: 0.75rem;
   padding: 1.4rem 0.25rem 0;
   border-bottom: 1px solid var(--line);
-}
-
-.an-horizon__avg-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  border-top: 1.5px dashed var(--coral);
-  pointer-events: none;
-  z-index: 1;
 }
 
 .an-month-col {
@@ -207,17 +198,18 @@
 
 .an-month-bar {
   width: 100%;
-  max-width: 2.2rem;
-  min-height: 0.55rem;
-  border-radius: 0.75rem 0.75rem 0.35rem 0.35rem;
+  max-width: 3.2rem;
+  min-height: 3px;
+  border-radius: 0.75rem 0.75rem 0 0;
   background: var(--blue-soft);
   border: 1px solid rgba(143, 185, 201, 0.45);
-  transition: transform 180ms ease, background 180ms ease;
+  border-bottom: 0;
+  transition: opacity 150ms ease, background 180ms ease;
 }
 
 .an-month-col:hover .an-month-bar,
 .an-month-col:focus-visible .an-month-bar {
-  transform: translateY(-3px);
+  opacity: 0.85;
 }
 
 .an-month-bar--calm {
@@ -280,19 +272,19 @@
   color: #87908a;
 }
 
-/* 3. Category Donut & Visual Cards */
+/* 3. Category Pie Chart & List */
 .an-donut-wrap {
   display: grid;
-  grid-template-columns: 11.5rem minmax(0, 1fr);
+  grid-template-columns: 15rem minmax(0, 1fr);
   align-items: center;
-  gap: 1.5rem;
-  margin-top: 1.2rem;
+  gap: 2.5rem;
+  margin-top: 1.4rem;
 }
 
 .an-donut {
   position: relative;
-  width: 11.5rem;
-  height: 11.5rem;
+  width: 14rem;
+  height: 14rem;
   display: grid;
   place-items: center;
   margin: 0 auto;
@@ -302,35 +294,22 @@
   width: 100%;
   height: 100%;
   transform: rotate(-90deg);
+  border-radius: 50%;
 }
 
-.an-donut__center {
-  position: absolute;
-  text-align: center;
+.an-pie-slice {
+  cursor: pointer;
+  transition: opacity 150ms ease;
 }
 
-.an-donut__center strong {
-  display: block;
-  font-family: var(--font-display);
-  font-size: 1.45rem;
-  font-weight: 400;
-  line-height: 1.05;
-}
-
-.an-donut__center span {
-  display: block;
-  margin-top: 0.15rem;
-  color: #87908a;
-  font-size: 0.58rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+.an-pie-slice:hover {
+  opacity: 0.82;
 }
 
 .an-cat-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 0.85rem 1.5rem;
 }
 
 .an-cat-item {
@@ -338,6 +317,17 @@
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 0.75rem;
+  padding: 0.55rem 0.65rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+
+.an-cat-item:hover {
+  background: var(--paper);
 }
 
 .an-cat-body {
@@ -361,8 +351,8 @@
 }
 
 .an-cat-head span {
-  font-size: 0.62rem;
-  color: #87908a;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
 }
 
 .an-cat-pct {
@@ -373,167 +363,9 @@
   font-weight: 700;
 }
 
-/* 4. Weekly Habit Capsules & 28-Day Bubble Strip */
-.an-week-capsules {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 0.65rem;
-  margin-top: 1.3rem;
-}
-
-.an-day-pill {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 0.35rem;
-  border-radius: var(--radius-md);
-  background: var(--paper);
-  border: 1px solid transparent;
-}
-
-.an-day-pill--peak {
-  background: var(--coral-soft);
-  border-color: rgba(240, 113, 87, 0.35);
-}
-
-.an-day-pill__track {
-  width: 1.5rem;
-  height: 5.8rem;
-  border-radius: 999px;
-  background: rgba(21, 34, 28, 0.08);
-  display: flex;
-  align-items: flex-end;
-  padding: 0.18rem;
-  overflow: hidden;
-}
-
-.an-day-pill__fill {
-  width: 100%;
-  border-radius: 999px;
-  background: var(--ink);
-  transition: height 250ms ease;
-}
-
-.an-day-pill--peak .an-day-pill__fill {
-  background: var(--coral);
-}
-
-.an-day-pill__name {
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: var(--ink);
-}
-
-.an-day-pill__amt {
-  font-size: 0.58rem;
-  color: var(--ink-soft);
-}
-
-.an-habit-strip {
-  margin-top: 1.35rem;
-  padding-top: 1.15rem;
-  border-top: 1px solid var(--line-soft);
-}
-
-.an-habit-dots {
-  display: grid;
-  grid-template-columns: repeat(14, minmax(0, 1fr));
-  gap: 0.38rem;
-  margin-top: 0.65rem;
-}
-
-.an-dot {
-  aspect-ratio: 1;
-  border-radius: 0.45rem;
-  display: grid;
-  place-items: center;
-  font-size: 0.55rem;
-  font-weight: 700;
-}
-
-.an-dot--zero {
-  background: var(--mint-soft);
-  color: #3e7b5e;
-}
-
-.an-dot--low {
-  background: var(--blue-soft);
-  color: #426676;
-}
-
-.an-dot--mid {
-  background: var(--sand-soft);
-  color: #7a653b;
-}
-
-.an-dot--high {
-  background: var(--coral-soft);
-  color: #b64d39;
-}
-
-/* 5. Payment Modes & Top Splurges */
-.an-mode-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: 0.75rem;
-  margin-top: 1.1rem;
-}
-
-.an-mode-card {
-  padding: 1rem;
-  border-radius: var(--radius-md);
-  background: var(--paper);
-  border: 1px solid var(--line-soft);
-}
-
-.an-mode-card__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--ink-soft);
-}
-
-.an-mode-card strong {
-  display: block;
-  margin-top: 0.45rem;
-  font-family: var(--font-display);
-  font-size: 1.45rem;
-  font-weight: 400;
-}
-
-.an-mode-card small {
-  display: block;
-  margin-top: 0.15rem;
-  font-size: 0.6rem;
-  color: #87908a;
-}
-
-.an-rank-badge {
-  display: grid;
-  width: 2rem;
-  height: 2rem;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--paper);
-  font-family: var(--font-display);
-  font-size: 0.85rem;
-  color: var(--ink);
-}
-
 @media (max-width: 1080px) {
   .an-hero {
     grid-template-columns: 1fr;
-  }
-
-  .an-col-8,
-  .an-col-7,
-  .an-col-6,
-  .an-col-5,
-  .an-col-4 {
-    grid-column: span 12;
   }
 }
 
@@ -542,19 +374,13 @@
     padding: 1.5rem;
   }
 
-  .an-hero__stats {
-    grid-template-columns: 1fr;
-  }
-
-  .an-donut-wrap {
+  .an-hero__stats,
+  .an-donut-wrap,
+  .an-cat-list {
     grid-template-columns: 1fr;
   }
 
   .an-horizon__stage {
     gap: 0.3rem;
-  }
-
-  .an-habit-dots {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
   }
 }

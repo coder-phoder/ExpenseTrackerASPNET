@@ -193,13 +193,15 @@
             <div class="hist-stage" style="--cols: @daysThis">
                 @foreach (var b in dailyBars)
                 {
-                    var hPct = b.Amount > 0 ? Math.Clamp((double)(b.Amount / maxDaily) * 100.0, 8.0, 100.0) : 3.0;
+                    var hPct = b.Amount > 0 ? Math.Clamp((double)(b.Amount / maxDaily) * 100.0, 4.0, 100.0) : 0.0;
                     var isToday = b.Date == today;
                     <button type="button" class="hist-col"
                             data-hist-title="@b.Date.ToString("d MMMM yyyy") · @b.Amount.ToString("C0")"
                             data-from="@b.Day" data-to="@b.Day"
                             title="@b.Date.ToString("d MMM"): @b.Amount.ToString("C0")">
-                        <div class="hist-bar @(isToday ? "hist-bar--today" : b.Amount > 0 ? "hist-bar--active" : "")" style="height: @F(hPct)%"></div>
+                        <div class="hist-track">
+                            <div class="hist-bar @(isToday ? "hist-bar--today" : b.Amount > 0 ? "hist-bar--active" : "")" style="height: @F(hPct)%"></div>
+                        </div>
                         <span class="hist-lbl">@b.Day</span>
                     </button>
                 }
@@ -210,13 +212,15 @@
             <div class="hist-stage hist-stage--weekly" style="--cols: @weeklyBars.Length">
                 @foreach (var w in weeklyBars)
                 {
-                    var hPct = w.Amount > 0 ? Math.Clamp((double)(w.Amount / maxWeekly) * 100.0, 10.0, 100.0) : 4.0;
+                    var hPct = w.Amount > 0 ? Math.Clamp((double)(w.Amount / maxWeekly) * 100.0, 4.0, 100.0) : 0.0;
                     <button type="button" class="hist-col"
                             data-hist-title="@w.Label (@w.Range) · @w.Amount.ToString("C0")"
                             data-from="@w.StartDay" data-to="@w.EndDay"
                             title="@w.Range: @w.Amount.ToString("C0")">
-                        <strong class="hist-val num">@w.Amount.ToString("C0")</strong>
-                        <div class="hist-bar @(w.Amount > 0 ? "hist-bar--active" : "")" style="height: @F(hPct)%"></div>
+                        <div class="hist-track">
+                            <strong class="hist-val num">@w.Amount.ToString("C0")</strong>
+                            <div class="hist-bar @(w.Amount > 0 ? "hist-bar--active" : "")" style="height: @F(hPct)%"></div>
+                        </div>
                         <span class="hist-lbl">@w.Label <small class="d-none d-sm-inline">(@w.Range)</small></span>
                     </button>
                 }

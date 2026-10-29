@@ -72,77 +72,56 @@
         .Count();
     var calmDaysThisMonth = Math.Max(0, today.Day - activeDaysThisMonth);
 
-    // 12-Month Horizon data
-    var months = Enumerable.Range(-11, 12)
-        .Select(i => thisMonth.AddMonths(i))
+    var topCatName = Model
+        .GroupBy(e => e.Category)
+        .OrderByDescending(g => g.Sum(e => e.Price ?? 0m))
+        .Select(g => g.Key)
+        .FirstOrDefault() ?? "Living";
+
+    // Selected Year (Section 2) & Selected Month (Section 3)
+    var selectedYear = int.TryParse(Context.Request.Query["year"], out var yVal) && yVal is >= 1970 and <= 2100 ? yVal : today.Year;
+    var selectedMonth = DateOnly.TryParseExact(Context.Request.Query["month"], "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.None, out var mVal)
+        ? new DateOnly(mVal.Year, mVal.Month, 1)
+        : thisMonth;
+    var selMonthIso = selectedMonth.ToString("yyyy-MM");
+
+    // Section 2: All 12 months (Jan..Dec) of selectedYear
+    var months = Enumerable.Range(1, 12)
+        .Select(m => new DateOnly(selectedYear, m, 1))
         .Select(m => (Month: m, Tick: m.ToString("MMM"), FullName: m.ToString("MMMM yyyy"), Amount: InMonth(m)))
         .ToArray();
+    var yearTotal = months.Sum(m => m.Amount);
     var maxMonthAmt = Math.Max(1m, months.Max(m => m.Amount));
     var activeMonths = months.Where(m => m.Amount > 0m).ToArray();
     var avgMonthlyAmt = activeMonths.Length > 0 ? activeMonths.Average(m => m.Amount) : 0m;
-    var avgLineBottomPct = Math.Clamp((double)(avgMonthlyAmt / maxMonthAmt) * 100.0, 12.0, 88.0);
     var peakMonthAmt = months.Max(m => m.Amount);
 
-    // Categories breakdown + Donut slices
+    // Section 3: Categories for selectedMonth + Pie chart
     (string Color, string Tone, string BarClass)[] catStyles =
     [
         ("var(--coral)", "coral", "budget-bar__fill--coral"),
         ("var(--mint)", "mint", "budget-bar__fill--ink"),
         ("var(--blue)", "blue", "budget-bar__fill--blue"),
         ("var(--sand)", "sand", "budget-bar__fill--coral"),
-        ("var(--ink)", "mint", "budget-bar__fill--ink")
+        ("var(--ink)", "mint", "budget-bar__fill--ink"),
+        ("#9f7ab8", "blue", "budget-bar__fill--blue")
     ];
 
-    var categories = Model
+    var selMonthExpenses = Model
+        .Where(e => e.Date.Year == selectedMonth.Year && e.Date.Month == selectedMonth.Month)
+        .OrderByDescending(e => e.Price ?? 0m)
+        .ThenByDescending(e => e.Date)
+        .ToList();
+    var selMonthTotal = selMonthExpenses.Sum(e => e.Price ?? 0m);
+    var selMonthTotalSafe = Math.Max(1m, selMonthTotal);
+
+    var monthCategories = selMonthExpenses
         .GroupBy(e => e.Category)
         .Select(g => (Name: g.Key, Amount: g.Sum(e => e.Price ?? 0m), Count: g.Count()))
         .OrderByDescending(c => c.Amount)
         .ToList();
 
-    var topCategories = categories.Take(5).ToList();
-    var topCatName = topCategories.FirstOrDefault().Name ?? "Living";
-
-    string[] monthTones = ["ink", "coral", "blue"];
-    var monthCategories = Model
-        .Where(e => e.Date >= thisMonth && e.Date < thisMonth.AddMonths(1))
-        .GroupBy(e => e.Category)
-        .Select(g => (Label: g.Key, Spent: g.Sum(e => e.Price ?? 0m)))
-        .OrderByDescending(c => c.Spent)
-        .ToList();
-    var topMonthCategories = monthCategories.Take(3)
-        .Select((c, i) => (c.Label, c.Spent, Percent: monthTotal > 0 ? Math.Clamp((int)Math.Round(c.Spent / monthTotal * 100m), 6, 100) : 0, Tone: monthTones[i]))
-        .ToList();
-
-    // Day-of-week habit capsules (Mon..Sun)
-    DayOfWeek[] dowOrder = [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday];
-    string[] dowShort = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    string[] dowFull = ["Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays", "Sundays"];
-    var dowAmounts = dowOrder
-        .Select(d => Spent(e => e.Date.DayOfWeek == d))
-        .ToArray();
-    var maxDowAmt = Math.Max(1m, dowAmounts.Max());
-    var peakDowIndex = Array.IndexOf(dowAmounts, dowAmounts.Max());
-    var weekendSharePct = (int)Math.Round((dowAmounts[5] + dowAmounts[6]) / total * 100m);
-
-    // Last 14 days daily habit strip
-    var last14Days = Enumerable.Range(-13, 14)
-        .Select(offset => today.AddDays(offset))
-        .Select(d => (Date: d, Amount: Spent(e => e.Date == d)))
-        .ToArray();
-
-    // Payment modes
-    (string Name, PaymentMode Mode, decimal Amount, string Color)[] modes = Enum.GetValues<PaymentMode>()
-        .Select((p, idx) => (
-            Name: p.DisplayName(),
-            Mode: p,
-            Amount: Spent(e => e.PaymentMode == p),
-            Color: catStyles[idx % catStyles.Length].Color
-        ))
-        .Where(m => m.Amount > 0m)
-        .OrderByDescending(m => m.Amount)
-        .ToArray();
-
-    var allCatNames = categories.Select(c => c.Name).Order().ToList();
+    var allCatNames = Model.Select(e => e.Category).Distinct().Order().ToList();
     var dialogModel = new ExpensesViewModel([], new Expense { Date = today }, allCatNames);
 }
 
@@ -209,41 +188,43 @@
         <div class="an-hero__orbit an-hero__orbit--two"></div>
     </section>
 
-    @* 2. 12-Month Spending Chart *@
-    <section class="panel an-col-7">
-        <div class="panel__header">
-            <h2>Monthly spending (last 12 months)</h2>
-            <span class="an-horizon__avg num">
-                Monthly avg: @CompactMoney(avgMonthlyAmt)
-            </span>
+    @* 2. Monthly Spending (Full-Width Year Histogram) *@
+    <section class="panel an-col-12">
+        <div class="panel__header flex-wrap">
+            <div>
+                <h2>Monthly spending · @selectedYear</h2>
+                <p class="muted mb-0 mt-1 small num">Total in @selectedYear: @yearTotal.ToString("C0") · Monthly avg: @CompactMoney(avgMonthlyAmt)</p>
+            </div>
+            <div class="page-actions">
+                <a asp-action="Analytics" asp-route-year="@(selectedYear - 1)" asp-route-month="@selMonthIso" class="btn btn-outline-secondary" aria-label="Previous year">&lsaquo;</a>
+                <a asp-action="Analytics" asp-route-year="@today.Year" asp-route-month="@selMonthIso" class="btn btn-outline-secondary">This year</a>
+                <a asp-action="Analytics" asp-route-year="@(selectedYear + 1)" asp-route-month="@selMonthIso" class="btn btn-outline-secondary" aria-label="Next year">&rsaquo;</a>
+            </div>
         </div>
 
         <div class="chart-summary" style="margin-top:0.9rem">
             <div><span class="legend-dot" style="background:var(--mint)"></span>Low</div>
-            <div><span class="legend-dot" style="background:var(--ink)"></span>This month</div>
+            <div><span class="legend-dot" style="background:var(--ink)"></span>Current month</div>
             <div><span class="legend-dot" style="background:var(--coral)"></span>Highest</div>
         </div>
 
         <div class="an-horizon">
             <div class="an-horizon__stage">
-                @if (avgMonthlyAmt > 0)
-                {
-                    <div class="an-horizon__avg-line" style="bottom: @F(avgLineBottomPct)%"></div>
-                }
                 @foreach (var m in months)
                 {
-                    var hPct = m.Amount > 0 ? Math.Clamp((double)(m.Amount / maxMonthAmt) * 100.0, 8.0, 100.0) : 4.0;
+                    var hPct = m.Amount > 0 ? Math.Clamp((double)(m.Amount / maxMonthAmt) * 100.0, 4.0, 100.0) : 0.0;
                     var isCurrent = m.Month == thisMonth;
                     var isPeak = m.Amount == peakMonthAmt && m.Amount > 0;
                     var isCalm = m.Amount > 0 && m.Amount <= avgMonthlyAmt * 0.85m && !isCurrent;
                     var barMod = isPeak ? "an-month-bar--peak" : isCurrent ? "an-month-bar--current" : isCalm ? "an-month-bar--calm" : "";
-                    <div class="an-month-col" tabindex="0" style="--bar-h: @F(hPct)%" aria-label="@m.FullName: @m.Amount.ToString("C0")">
+                    <a href="@Url.Action("Calendar", new { month = m.Month.ToString("yyyy-MM") })"
+                       class="an-month-col text-decoration-none" style="--bar-h: @F(hPct)%" aria-label="@m.FullName: @m.Amount.ToString("C0")">
                         <div class="an-month-tip">
                             <strong class="num">@m.Amount.ToString("C0")</strong>
                             <span>@m.FullName</span>
                         </div>
                         <div class="an-month-bar @barMod" style="height: @F(hPct)%"></div>
-                    </div>
+                    </a>
                 }
             </div>
             <div class="an-horizon__labels">
@@ -255,205 +236,121 @@
         </div>
     </section>
 
-    @* 3. Spending by Category *@
-    <section class="panel an-col-5">
-        <div class="panel__header">
-            <h2>Spending by category</h2>
-        </div>
-
-        <div class="an-donut-wrap">
-            <div class="an-donut">
-                @{
-                    const double ringCirc = 314.16; // 2 * pi * 50
-                    var ringOffset = 0.0;
-                }
-                <svg viewBox="0 0 120 120" role="img" aria-label="Spending by category chart">
-                    <circle cx="60" cy="60" r="50" fill="none" stroke="var(--line-soft)" stroke-width="14" />
-                    @for (var i = 0; i < topCategories.Count; i++)
-                    {
-                        var cat = topCategories[i];
-                        var style = catStyles[i % catStyles.Length];
-                        var seg = Math.Max(0.0, (double)(cat.Amount / total) * ringCirc);
-                        <circle cx="60"
-                                cy="60"
-                                r="50"
-                                fill="none"
-                                stroke="@style.Color"
-                                stroke-width="14"
-                                stroke-dasharray="@F(seg) @F(ringCirc)"
-                                stroke-dashoffset="@F(-ringOffset)" />
-                        ringOffset += seg;
-                    }
-                </svg>
-                <div class="an-donut__center">
-                    <strong class="num">@CompactMoney(total)</strong>
-                </div>
+    @* 3. Spending by Category (Full-Width Interactive Pie Chart by Month) *@
+    <section class="panel an-col-12">
+        <div class="panel__header flex-wrap">
+            <div>
+                <h2>Spending by category · @selectedMonth.ToString("MMMM yyyy")</h2>
+                <p class="muted mb-0 mt-1 small num">Total: @selMonthTotal.ToString("C0") · Click any slice or category to view expenses</p>
             </div>
-
-            <div class="an-cat-list">
-                @for (var i = 0; i < topCategories.Count; i++)
-                {
-                    var cat = topCategories[i];
-                    var style = catStyles[i % catStyles.Length];
-                    var pct = (int)Math.Round(cat.Amount / total * 100m);
-                    var relWidth = Math.Clamp((int)Math.Round(cat.Amount / topCategories[0].Amount * 100m), 8, 100);
-                    <div class="an-cat-item">
-                        <span class="transaction__icon transaction__icon--@style.Tone" style="width:2.2rem;height:2.2rem;border-radius:0.65rem">
-                            <svg class="i" style="width:16px;height:16px"><use href="@CatIcon(cat.Name)" /></svg>
-                        </span>
-                        <div class="an-cat-body">
-                            <div class="an-cat-head">
-                                <strong>@cat.Name</strong>
-                                <span class="num">@CompactMoney(cat.Amount)</span>
-                            </div>
-                            <div class="budget-bar" style="margin-top:0">
-                                <span class="budget-bar__fill @style.BarClass" style="width: @(relWidth)%"></span>
-                            </div>
-                        </div>
-                        <span class="an-cat-pct num">@pct%</span>
-                    </div>
-                }
+            <div class="page-actions">
+                <a asp-action="Analytics" asp-route-year="@selectedYear" asp-route-month="@selectedMonth.AddMonths(-1).ToString("yyyy-MM")" class="btn btn-outline-secondary" aria-label="Previous month">&lsaquo;</a>
+                <a asp-action="Analytics" asp-route-year="@selectedYear" asp-route-month="@thisMonth.ToString("yyyy-MM")" class="btn btn-outline-secondary">This month</a>
+                <a asp-action="Analytics" asp-route-year="@selectedYear" asp-route-month="@selectedMonth.AddMonths(1).ToString("yyyy-MM")" class="btn btn-outline-secondary" aria-label="Next month">&rsaquo;</a>
             </div>
         </div>
-    </section>
 
-    <section class="panel spending an-col-12">
-        <div class="panel__header">
-            <h2>Top categories this month</h2>
-            <span class="days-left">@monthCategories.Count @(monthCategories.Count == 1 ? "category" : "categories")</span>
-        </div>
-        @if (topMonthCategories.Count == 0)
+        @if (monthCategories.Count == 0)
         {
-            <p class="muted mb-0 mt-3">No expenses added this month yet.</p>
+            <p class="muted mb-0 py-4 text-center">No expenses in @selectedMonth.ToString("MMMM yyyy").</p>
         }
         else
         {
-            <div class="budget-list">
-                @foreach (var row in topMonthCategories)
-                {
-                    <div class="budget-row">
-                        <div class="budget-row__heading">
-                            <p>@row.Label</p>
-                            <span class="num"><strong>@row.Spent.ToString("C0")</strong> (@row.Percent%)</span>
-                        </div>
-                        <div class="budget-bar">
-                            <span class="budget-bar__fill budget-bar__fill--@row.Tone" style="width: @(row.Percent)%"></span>
-                        </div>
-                    </div>
-                }
+            <div class="an-donut-wrap">
+                <div class="an-donut">
+                    @{
+                        const double pieCirc = 188.5; // 2 * pi * 30 (r=30, stroke-width=60 -> solid pie chart)
+                        var pieOffset = 0.0;
+                    }
+                    <svg viewBox="0 0 120 120" role="img" aria-label="Spending by category pie chart">
+                        @for (var i = 0; i < monthCategories.Count; i++)
+                        {
+                            var cat = monthCategories[i];
+                            var style = catStyles[i % catStyles.Length];
+                            var seg = Math.Max(0.0, (double)(cat.Amount / selMonthTotalSafe) * pieCirc);
+                            <circle cx="60"
+                                    cy="60"
+                                    r="30"
+                                    fill="none"
+                                    stroke="@style.Color"
+                                    stroke-width="60"
+                                    stroke-dasharray="@F(seg) @F(pieCirc)"
+                                    stroke-dashoffset="@F(-pieOffset)"
+                                    class="an-pie-slice"
+                                    data-cat-open="@cat.Name"
+                                    data-cat-title="@cat.Name · @selectedMonth.ToString("MMMM yyyy") (@cat.Amount.ToString("C0"))">
+                                <title>@cat.Name: @cat.Amount.ToString("C0")</title>
+                            </circle>
+                            pieOffset += seg;
+                        }
+                    </svg>
+                </div>
+
+                <div class="an-cat-list">
+                    @for (var i = 0; i < monthCategories.Count; i++)
+                    {
+                        var cat = monthCategories[i];
+                        var style = catStyles[i % catStyles.Length];
+                        var pct = (int)Math.Round(cat.Amount / selMonthTotalSafe * 100m);
+                        var relWidth = Math.Clamp((int)Math.Round(cat.Amount / monthCategories[0].Amount * 100m), 8, 100);
+                        <button type="button" class="an-cat-item"
+                                data-cat-open="@cat.Name"
+                                data-cat-title="@cat.Name · @selectedMonth.ToString("MMMM yyyy") (@cat.Amount.ToString("C0"))">
+                            <span class="transaction__icon transaction__icon--@style.Tone" style="width:2.2rem;height:2.2rem;border-radius:0.65rem">
+                                <svg class="i" style="width:16px;height:16px"><use href="@CatIcon(cat.Name)" /></svg>
+                            </span>
+                            <div class="an-cat-body">
+                                <div class="an-cat-head">
+                                    <strong>@cat.Name</strong>
+                                    <span class="num">@cat.Amount.ToString("C0")</span>
+                                </div>
+                                <div class="budget-bar" style="margin-top:0">
+                                    <span class="budget-bar__fill @style.BarClass" style="width: @(relWidth)%"></span>
+                                </div>
+                            </div>
+                            <span class="an-cat-pct num">@pct%</span>
+                        </button>
+                    }
+                </div>
             </div>
         }
-        <a asp-action="Calendar" class="text-link">
-            Open calendar
-            <svg class="i" style="width:15px;height:15px"><use href="#i-arrow-up-right" /></svg>
-        </a>
-    </section>
-
-    @* 4. Spending by Day of the Week *@
-    <section class="panel an-col-6">
-        <div class="panel__header">
-            <h2>Spending by day of week</h2>
-            <span class="days-left num">@weekendSharePct% on weekends</span>
-        </div>
-
-        <div class="an-week-capsules">
-            @for (var i = 0; i < 7; i++)
-            {
-                var amt = dowAmounts[i];
-                var fillPct = Math.Clamp((int)Math.Round(amt / maxDowAmt * 100m), 10, 100);
-                var isPeak = i == peakDowIndex;
-                <div class="an-day-pill @(isPeak ? "an-day-pill--peak" : "")" title="@dowFull[i]: @amt.ToString("C0")">
-                    <span class="an-day-pill__name">@dowShort[i]</span>
-                    <div class="an-day-pill__track">
-                        <div class="an-day-pill__fill" style="height: @(fillPct)%"></div>
-                    </div>
-                    <span class="an-day-pill__amt num">@CompactMoney(amt)</span>
-                </div>
-            }
-        </div>
-
-        <div class="an-habit-strip">
-            <p class="muted small mb-2">Last 14 days (green = ₹0 spent, red = high spending)</p>
-            <div class="an-habit-dots">
-                @foreach (var d in last14Days)
-                {
-                    var toneClass = d.Amount <= 0m
-                        ? "an-dot--zero"
-                        : d.Amount <= dailyAvg * 0.8m
-                            ? "an-dot--low"
-                            : d.Amount <= dailyAvg * 1.6m
-                                ? "an-dot--mid"
-                                : "an-dot--high";
-                    <div class="an-dot @toneClass" title="@d.Date.ToString("ddd, MMM d"): @d.Amount.ToString("C0")">
-                        @d.Date.Day
-                    </div>
-                }
-            </div>
-        </div>
-    </section>
-
-    @* 5. Payment Methods & Biggest Expenses *@
-    <section class="panel an-col-6">
-        <div class="panel__header">
-            <h2>How you paid &amp; biggest expenses</h2>
-            <a asp-action="Expenses" asp-route-sort="price_desc" class="text-link">
-                See all
-                <svg class="i" style="width:15px;height:15px"><use href="#i-arrow-up-right" /></svg>
-            </a>
-        </div>
-
-        <div class="an-split-bar" style="margin:1rem 0 0.75rem;background:var(--line-soft)">
-            @foreach (var m in modes)
-            {
-                var share = Math.Max(6, (int)Math.Round(m.Amount / total * 100m));
-                <span style="flex: @share; background: @m.Color" title="@m.Name: @m.Amount.ToString("C0")"></span>
-            }
-        </div>
-
-        <div class="an-mode-cards">
-            @foreach (var m in modes)
-            {
-                var pct = (int)Math.Round(m.Amount / total * 100m);
-                <div class="an-mode-card">
-                    <div class="an-mode-card__top">
-                        <span>@m.Name</span>
-                        <span class="num" style="color:var(--coral)">@pct%</span>
-                    </div>
-                    <strong class="num">@CompactMoney(m.Amount)</strong>
-                </div>
-            }
-        </div>
-
-        <div class="mt-3 pt-1">
-            <div class="transaction-list" style="margin-top:0">
-                @{
-                    var topSpends = Model.OrderByDescending(e => e.Price).Take(4).ToList();
-                }
-                @for (var i = 0; i < topSpends.Count; i++)
-                {
-                    var e = topSpends[i];
-                    <button type="button"
-                            class="transaction"
-                            data-expense
-                            data-id="@e.Id"
-                            data-title="@e.Title"
-                            data-price="@e.Price"
-                            data-category="@e.Category"
-                            data-date="@e.Date.ToString("yyyy-MM-dd")"
-                            data-paymentmode="@((int)e.PaymentMode)"
-                            data-description="@e.Description">
-                        <span class="an-rank-badge">0@(i + 1)</span>
-                        <div class="transaction__details">
-                            <p>@e.Title</p>
-                            <span>@e.Category</span>
-                        </div>
-                        <strong class="num">@e.Price?.ToString("C0")</strong>
-                    </button>
-                }
-            </div>
-        </div>
     </section>
 </div>
+
+<dialog id="cat-dialog" class="sheet" aria-labelledby="cat-dialog-title">
+    <div class="modal__header">
+        <h2 id="cat-dialog-title">Category expenses</h2>
+        <button type="button" class="button button--icon" aria-label="Close" onclick="this.closest('dialog').close()">
+            <svg class="i"><use href="#i-close" /></svg>
+        </button>
+    </div>
+    <div class="transaction-list" style="max-height:22rem;overflow-y:auto">
+        @for (var i = 0; i < selMonthExpenses.Count; i++)
+        {
+            var e = selMonthExpenses[i];
+            <button type="button"
+                    class="transaction"
+                    data-cat-row="@e.Category"
+                    data-expense
+                    data-id="@e.Id"
+                    data-title="@e.Title"
+                    data-price="@e.Price"
+                    data-category="@e.Category"
+                    data-date="@e.Date.ToString("yyyy-MM-dd")"
+                    data-paymentmode="@((int)e.PaymentMode)"
+                    data-description="@e.Description">
+                <span class="transaction__icon transaction__icon--@(catStyles[i % catStyles.Length].Tone)">
+                    <svg class="i"><use href="@CatIcon(e.Category)" /></svg>
+                </span>
+                <div class="transaction__details">
+                    <p>@e.Title</p>
+                    <span>@e.Date.ToString("d MMM yyyy") · @e.PaymentMode.DisplayName()</span>
+                </div>
+                <strong class="num">− @e.Price?.ToString("C0")</strong>
+            </button>
+        }
+    </div>
+</dialog>
 
 <partial name="_ExpenseDialog" model="dialogModel" />
 
