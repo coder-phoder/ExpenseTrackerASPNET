@@ -10,6 +10,7 @@
         <h2 class="mb-4" style="font-family:var(--font-display);font-size:2rem;font-weight:400">No expenses yet</h2>
         <a asp-action="Expenses" class="button button--primary">Add expense</a>
     </section>
+    <partial name="_ExpenseDialog" model="new ExpensesViewModel([], new Expense { Date = DateOnly.FromDateTime(DateTime.Today) }, Expense.DefaultCategories)" />
     return;
 }
 
@@ -121,7 +122,7 @@
         .OrderByDescending(c => c.Amount)
         .ToList();
 
-    var allCatNames = Model.Select(e => e.Category).Distinct().Order().ToList();
+    var allCatNames = Expense.DefaultCategories.Union(Model.Select(e => e.Category), StringComparer.OrdinalIgnoreCase).Order().ToList();
     var dialogModel = new ExpensesViewModel([], new Expense { Date = today }, allCatNames);
 }
 

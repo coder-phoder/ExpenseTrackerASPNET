@@ -11,7 +11,7 @@
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 d-print-none">
     <form asp-action="Statement" method="get" class="d-flex gap-2">
-        <input type="month" name="month" value="@Model.Month.ToString("yyyy-MM")" class="form-control" aria-label="Month" required />
+        <input type="date" name="month" value="@Model.Month.ToString("yyyy-MM-dd")" class="form-control" aria-label="Month" required />
         <button type="submit" class="btn btn-outline-primary">Show</button>
     </form>
     <div class="d-flex gap-2">

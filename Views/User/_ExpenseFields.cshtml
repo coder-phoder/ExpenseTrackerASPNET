@@ -20,13 +20,9 @@
 <div class="form-row">
     <label class="field">
         <span>Category</span>
-        <input asp-for="Expense.Category" list="categoryList" autocomplete="off" placeholder="e.g. Food, Bills, Travel" />
-        <datalist id="categoryList">
-            @foreach (var c in Model.Categories)
-            {
-                <option value="@c"></option>
-            }
-        </datalist>
+        <select asp-for="Expense.Category" asp-items="new SelectList(Model.Categories)">
+            <option value="">Select category</option>
+        </select>
         <span asp-validation-for="Expense.Category" class="text-danger small"></span>
     </label>
 
