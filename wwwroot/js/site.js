@@ -49,7 +49,7 @@ document.addEventListener('click', e => {
     }
 });
 
-// 4. Balance Hero show/hide toggle
+// 4. Hero amount show/hide toggle
 document.addEventListener('click', e => {
     const btn = e.target.closest('#spendy-balance-toggle');
     if (!btn) return;
@@ -60,7 +60,7 @@ document.addEventListener('click', e => {
     const nextVisible = !visible;
 
     btn.dataset.visible = String(nextVisible);
-    btn.setAttribute('aria-label', nextVisible ? 'Hide balance' : 'Show balance');
+    btn.setAttribute('aria-label', nextVisible ? 'Hide amount' : 'Show amount');
     if (valWrap) valWrap.classList.toggle('balance-value--hidden', !nextVisible);
     if (wholeEl) wholeEl.textContent = nextVisible ? (btn.dataset.whole || '₹0') : '₹••,•••';
     if (useEl) useEl.setAttribute('href', nextVisible ? '#i-eye' : '#i-eye-off');

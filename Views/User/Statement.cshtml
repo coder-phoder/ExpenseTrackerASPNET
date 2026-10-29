@@ -1,7 +1,7 @@
 @model (DateOnly Month, List<Expense> Expenses)
 @{
     // Also the browser's default file name when saving as PDF.
-    ViewData["Title"] = $"Statement {Model.Month:MMMM yyyy}";
+    ViewData["Title"] = $"Monthly Report {Model.Month:MMMM yyyy}";
     var total = Model.Expenses.Sum(e => e.Price ?? 0);
     var byCategory = Model.Expenses.GroupBy(e => e.Category)
         .Select(g => (Name: g.Key, Count: g.Count(), Amount: g.Sum(e => e.Price ?? 0)))
@@ -16,12 +16,12 @@
     </form>
     <div class="d-flex gap-2">
         <a asp-action="ExportCsv" asp-route-from="@Model.Month.ToString("yyyy-MM-dd")" asp-route-to="@Model.Month.AddMonths(1).AddDays(-1).ToString("yyyy-MM-dd")"
-           asp-route-sort="date_asc" class="btn btn-outline-secondary">Export CSV</a>
+           asp-route-sort="date_asc" class="btn btn-outline-secondary">Download CSV</a>
         <button type="button" class="btn btn-primary" onclick="print()">Save as PDF</button>
     </div>
 </div>
 
-<h1 class="mb-1">Statement · @Model.Month.ToString("MMMM yyyy")</h1>
+<h1 class="mb-1">Monthly Report · @Model.Month.ToString("MMMM yyyy")</h1>
 <p class="text-body-secondary">@User.Identity?.Name</p>
 
 <div class="row g-3 mb-4">
@@ -45,11 +45,11 @@
 }
 else
 {
-    <h2 class="h5">By category</h2>
+    <h2 class="h5">Spending by category</h2>
     <div class="table-responsive mb-4">
         <table class="table table-sm">
             <thead>
-                <tr><th>Category</th><th class="text-end">Expenses</th><th class="text-end">Amount</th><th class="text-end">Share</th></tr>
+                <tr><th>Category</th><th class="text-end">Expenses</th><th class="text-end">Amount</th><th class="text-end">% of total</th></tr>
             </thead>
             <tbody>
                 @foreach (var c in byCategory)

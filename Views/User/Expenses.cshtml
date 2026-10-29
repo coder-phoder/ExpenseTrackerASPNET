@@ -14,12 +14,12 @@
         <h1>Expenses</h1>
         @if (Model.Count > 0)
         {
-            <p class="num">@Model.Total.ToString("C0") · @Model.Count.ToString("N0")</p>
+            <p class="num">@Model.Total.ToString("C0") total · @Model.Count.ToString("N0") @(Model.Count == 1 ? "expense" : "expenses")</p>
         }
     </div>
     <div class="page-actions">
-        <a href="@Url.Action("ExportCsv")@Context.Request.QueryString" class="btn btn-outline-secondary"><svg class="i"><use href="#i-download" /></svg>Export CSV</a>
-        <button type="button" class="btn btn-primary" data-expense data-id="0" data-date="@today" data-paymentmode="0"><svg class="i"><use href="#i-plus" /></svg>New expense</button>
+        <a href="@Url.Action("ExportCsv")@Context.Request.QueryString" class="btn btn-outline-secondary"><svg class="i"><use href="#i-download" /></svg>Download CSV</a>
+        <button type="button" class="btn btn-primary" data-expense data-id="0" data-date="@today" data-paymentmode="0"><svg class="i"><use href="#i-plus" /></svg>Add expense</button>
     </div>
 </div>
 
@@ -44,9 +44,9 @@
                 <span>to</span>
                 <input type="date" name="to" value="@filter["to"]" class="form-control" aria-label="To date" />
             </div>
-            <label class="form-label" for="f-mode">Payment mode</label>
+            <label class="form-label" for="f-mode">How you paid</label>
             <select name="mode" id="f-mode" class="form-select">
-                <option value="">All payment modes</option>
+                <option value="">All payment methods</option>
                 @foreach (var m in Enum.GetValues<PaymentMode>())
                 {
                     <option value="@m" selected="@(filter["mode"] == m.ToString())">@m.DisplayName()</option>
@@ -87,7 +87,7 @@
             else
             {
                 <p>No expenses yet.</p>
-                <button type="button" class="btn btn-primary btn-sm" data-expense data-id="0" data-date="@today" data-paymentmode="0">New expense</button>
+                <button type="button" class="btn btn-primary btn-sm" data-expense data-id="0" data-date="@today" data-paymentmode="0">Add expense</button>
             }
         </div>
     }

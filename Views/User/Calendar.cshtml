@@ -9,7 +9,7 @@
 <div class="page-head">
     <div>
         <h1>@month.ToString("MMMM yyyy")</h1>
-        <p class="num">@totals.Values.Sum().ToString("C0")</p>
+        <p class="num">Total spent this month: @totals.Values.Sum().ToString("C0")</p>
     </div>
     <div class="page-actions">
         <a asp-action="Calendar" asp-route-month="@month.AddMonths(-1).ToString("yyyy-MM")" class="btn btn-outline-secondary" aria-label="Previous month">&lsaquo;</a>

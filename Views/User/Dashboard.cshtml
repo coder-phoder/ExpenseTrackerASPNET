@@ -13,26 +13,19 @@
 
     var spent = Model.Days.Where(d => d.Key >= first).Sum(d => d.Value);
     var prevFull = Model.Days.Where(d => d.Key >= prev && d.Key < first).Sum(d => d.Value);
+    var todaySpent = Model.Days.GetValueOrDefault(today);
+    var dailyAvg = today.Day > 0 ? Math.Round(spent / today.Day) : 0m;
     var compareDay = Math.Min(today.Day, daysPrev);
     var beforeToDate = Enumerable.Range(0, compareDay).Sum(i => Model.Days.GetValueOrDefault(prev.AddDays(i)));
 
-    // Monthly budget & balance calculations derived from real spending history
-    var rawBudget = prevFull > 0 ? Math.Ceiling(prevFull * 1.1m / 1000m) * 1000m : 50000m;
-    var budgetTarget = Math.Max(rawBudget, Math.Ceiling((spent + 5000m) / 1000m) * 1000m);
-    var savedThisMonth = Math.Max(0m, budgetTarget - spent);
-    var totalBalance = savedThisMonth + Math.Round(budgetTarget * 0.35m);
-    var balanceWhole = Math.Floor(totalBalance).ToString("C0");
-    var balanceCents = ((int)Math.Round((totalBalance - Math.Floor(totalBalance)) * 100)).ToString("00");
+    var spentWhole = Math.Floor(spent).ToString("C0");
+    var spentCents = ((int)Math.Round((spent - Math.Floor(spent)) * 100)).ToString("00");
 
-    var deltaPct = beforeToDate > 0 ? (double)((beforeToDate - spent) / beforeToDate * 100m) : 6.4;
+    var deltaPct = beforeToDate > 0 ? (double)((spent - beforeToDate) / beforeToDate * 100m) : 0.0;
     var deltaAbs = Math.Abs(deltaPct).ToString("0.0", CultureInfo.InvariantCulture);
 
     var onlineSpent = Model.MonthExpenses.Where(e => e.PaymentMode != PaymentMode.Cash).Sum(e => e.Price ?? 0m);
     var cashSpent = Model.MonthExpenses.Where(e => e.PaymentMode == PaymentMode.Cash).Sum(e => e.Price ?? 0m);
-
-    var budgetUsedPct = budgetTarget > 0 ? Math.Clamp((int)Math.Round(spent / budgetTarget * 100m), 4, 100) : 65;
-    var savedProgressPct = budgetTarget > 0 ? Math.Clamp((int)Math.Round(savedThisMonth / budgetTarget * 100m), 12, 100) : 78;
-    var daysRemaining = Math.Max(1, daysThis - today.Day);
 
     string CatIcon(string? cat) => (cat?.Trim().ToLowerInvariant()) switch
     {
@@ -130,41 +123,21 @@
     var cfMonth = BuildCashflow(30);
     var cfWeek = BuildCashflow(7);
 
-    // Top 3 budget rows for "Spending plan"
+    // Top 3 categories this month
     string[] tones = ["ink", "coral", "blue"];
-    var budgetRows = new List<(string Label, decimal Spent, decimal Cap, int Percent, string Tone)>();
-    for (var i = 0; i < 3; i++)
+    var topCategories = new List<(string Label, decimal Spent, int Percent, string Tone)>();
+    for (var i = 0; i < Math.Min(3, Model.Categories.Count); i++)
     {
-        if (i < Model.Categories.Count)
-        {
-            var c = Model.Categories[i];
-            var cap = Math.Max(c.Amount, Math.Ceiling(c.Amount * 1.35m / 500m) * 500m);
-            if (cap <= 0) cap = 2000m;
-            var pct = Math.Clamp((int)Math.Round(c.Amount / cap * 100m), 8, 100);
-            budgetRows.Add((c.Key, c.Amount, cap, pct, tones[i]));
-        }
-        else
-        {
-            string[] fallbackNames = ["Home", "Living", "Fun"];
-            decimal[] fallbackCaps = [16000m, 10000m, 6000m];
-            budgetRows.Add((fallbackNames[i], 0m, fallbackCaps[i], 0, tones[i]));
-        }
+        var c = Model.Categories[i];
+        var pct = spent > 0 ? Math.Clamp((int)Math.Round(c.Amount / spent * 100m), 6, 100) : 0;
+        topCategories.Add((c.Key, c.Amount, pct, tones[i]));
     }
 
-    // Priority goal ring math (circumference = 2 * pi * 62 ≈ 390)
-    var goalTarget = Math.Max(25000m, Math.Ceiling(budgetTarget * 0.5m / 1000m) * 1000m);
-    var goalSaved = Math.Clamp(savedThisMonth > 0 ? savedThisMonth : Math.Round(goalTarget * 0.68m), 0m, goalTarget);
-    var goalPct = goalTarget > 0 ? (int)Math.Round(goalSaved / goalTarget * 100m) : 68;
-    var goalDashOffset = (int)Math.Round(390.0 * (1.0 - goalPct / 100.0));
-
-    // Recurring / fixed bills list
-    var billExpenses = Model.MonthExpenses
-        .Where(e => e.Category.Equals("Bills", StringComparison.OrdinalIgnoreCase)
-                 || e.Category.Equals("Home", StringComparison.OrdinalIgnoreCase)
-                 || e.PaymentMode != PaymentMode.Cash)
-        .Take(2)
+    // Biggest expenses this month
+    var biggestExpenses = Model.MonthExpenses
+        .OrderByDescending(e => e.Price ?? 0m)
+        .Take(3)
         .ToList();
-    var recurringTotal = billExpenses.Count > 0 ? billExpenses.Sum(e => e.Price ?? 0m) : 2948m;
 
     var newExpense = new ExpensesViewModel([], new Expense { Date = today }, Model.AllCategories);
 }
@@ -173,25 +146,32 @@
     <div class="balance-hero">
         <div class="balance-hero__main">
             <div class="balance-hero__label-row">
-                <span class="eyebrow eyebrow--light">Total balance</span>
+                <span class="eyebrow eyebrow--light">Spent this month</span>
                 <button type="button"
                         class="button button--ghost"
                         id="spendy-balance-toggle"
-                        aria-label="Hide balance"
+                        aria-label="Hide amount"
                         data-visible="true"
-                        data-whole="@balanceWhole"
-                        data-cents=".@balanceCents">
+                        data-whole="@spentWhole"
+                        data-cents=".@spentCents">
                     <svg class="i" style="width:18px;height:18px"><use href="#i-eye" id="spendy-eye-icon" /></svg>
                 </button>
             </div>
             <div class="balance-value num" id="spendy-balance-value">
-                <strong id="spendy-balance-whole" style="font-weight:400">@balanceWhole</strong><span id="spendy-balance-cents">.@balanceCents</span>
+                <strong id="spendy-balance-whole" style="font-weight:400">@spentWhole</strong><span id="spendy-balance-cents">.@spentCents</span>
             </div>
             <div class="balance-change">
-                <span>
-                    <svg class="i" style="width:14px;height:14px"><use href="#i-arrow-up-right" /></svg>
-                    @deltaAbs%
-                </span>
+                @if (beforeToDate > 0)
+                {
+                    <span>
+                        <svg class="i" style="width:14px;height:14px"><use href="@(spent <= beforeToDate ? "#i-arrow-down-left" : "#i-arrow-up-right")" /></svg>
+                        @deltaAbs% @(spent <= beforeToDate ? "less than last month" : "more than last month")
+                    </span>
+                }
+                else
+                {
+                    <span>@Model.MonthExpenses.Count @(Model.MonthExpenses.Count == 1 ? "expense" : "expenses") this month</span>
+                }
             </div>
         </div>
 
@@ -200,18 +180,18 @@
                 <span class="account-row__icon">
                     <svg class="i" style="width:18px;height:18px"><use href="#i-wallet" /></svg>
                 </span>
-                <p>Online &amp; UPI</p>
+                <p>Paid online</p>
                 <strong class="num">@onlineSpent.ToString("C0")</strong>
             </div>
             <div class="account-row">
                 <span class="account-row__icon">
                     <svg class="i" style="width:18px;height:18px"><use href="#i-card" /></svg>
                 </span>
-                <p>Cash &amp; Wallet</p>
+                <p>Paid in cash</p>
                 <strong class="num">@cashSpent.ToString("C0")</strong>
             </div>
             <a asp-action="Analytics" class="manage-link">
-                Analytics
+                See charts
                 <svg class="i" style="width:15px;height:15px"><use href="#i-arrow-up-right" /></svg>
             </a>
         </div>
@@ -224,44 +204,43 @@
         <article class="metric-card">
             <div class="metric-card__top">
                 <span class="metric-icon metric-icon--mint">
-                    <svg class="i"><use href="#i-arrow-down-left" /></svg>
+                    <svg class="i"><use href="#i-arrow-up-right" /></svg>
                 </span>
-                <span class="trend trend--up">+10.0%</span>
+                <span class="trend">Today</span>
             </div>
-            <p>Monthly budget</p>
-            <strong class="num">@budgetTarget.ToString("C0")</strong>
+            <p>Spent today</p>
+            <strong class="num">@todaySpent.ToString("C0")</strong>
         </article>
 
         <article class="metric-card">
             <div class="metric-card__top">
                 <span class="metric-icon metric-icon--coral">
-                    <svg class="i"><use href="#i-arrow-up-right" /></svg>
+                    <svg class="i"><use href="#i-transactions" /></svg>
                 </span>
-                <span class="trend">@(spent <= beforeToDate ? $"−{deltaAbs}%" : $"+{deltaAbs}%")</span>
+                <span class="trend">This month</span>
             </div>
-            <p>Money out</p>
-            <strong class="num">@spent.ToString("C0")</strong>
+            <p>Average per day</p>
+            <strong class="num">@dailyAvg.ToString("C0")</strong>
         </article>
 
         <article class="metric-card metric-card--accent">
             <div class="metric-card__top">
                 <span class="metric-icon metric-icon--ink">
-                    <svg class="i"><use href="#i-goals" /></svg>
+                    <svg class="i"><use href="#i-budget" /></svg>
                 </span>
-                <span class="metric-kicker">@(savedThisMonth > 0 ? "On track" : "Active")</span>
+                <span class="metric-kicker">@Model.MonthExpenses.Count @(Model.MonthExpenses.Count == 1 ? "expense" : "expenses")</span>
             </div>
-            <p>Saved this month</p>
-            <strong class="num">@savedThisMonth.ToString("C0")</strong>
-            <div class="mini-progress"><span style="width: @(savedProgressPct)%"></span></div>
+            <p>Spent last month</p>
+            <strong class="num">@prevFull.ToString("C0")</strong>
         </article>
     </div>
 
     <section class="panel cashflow">
         <div class="panel__header">
-            <h2>Cashflow</h2>
+            <h2>Daily spending</h2>
             <div class="segmented" aria-label="Chart period">
-                <button type="button" data-cashflow-tab="week">Week</button>
-                <button type="button" class="segmented__active" data-cashflow-tab="month">Month</button>
+                <button type="button" data-cashflow-tab="week">7 days</button>
+                <button type="button" class="segmented__active" data-cashflow-tab="month">30 days</button>
                 <a asp-action="Analytics" class="text-decoration-none" style="border-radius:0.5rem;padding:0.38rem 0.65rem;color:#7b847f;font-size:0.65rem;font-weight:700">Year</a>
             </div>
         </div>
@@ -269,17 +248,17 @@
         <div class="chart-summary">
             <div>
                 <span class="legend-dot legend-dot--income"></span>
-                Budget <strong class="num">@budgetTarget.ToString("C0")</strong>
+                This month <strong class="num">@spent.ToString("C0")</strong>
             </div>
             <div>
                 <span class="legend-dot legend-dot--spend"></span>
-                Spending <strong class="num">@spent.ToString("C0")</strong>
+                Last month <strong class="num">@prevFull.ToString("C0")</strong>
             </div>
         </div>
 
-        <div class="chart" id="spendy-chart-month" aria-label="Income and spending chart for this month">
+        <div class="chart" id="spendy-chart-month" aria-label="Daily spending chart for the last 30 days">
             <svg viewBox="0 0 720 230" preserveAspectRatio="none" role="img">
-                <title>Monthly spending trends</title>
+                <title>Monthly spending</title>
                 <line x1="0" y1="18" x2="720" y2="18" class="grid-line" />
                 <line x1="0" y1="79" x2="720" y2="79" class="grid-line" />
                 <line x1="0" y1="140" x2="720" y2="140" class="grid-line" />
@@ -303,9 +282,9 @@
             </div>
         </div>
 
-        <div class="chart" id="spendy-chart-week" aria-label="Income and spending chart for this week" hidden>
+        <div class="chart" id="spendy-chart-week" aria-label="Daily spending chart for the last 7 days" hidden>
             <svg viewBox="0 0 720 230" preserveAspectRatio="none" role="img">
-                <title>Weekly spending trends</title>
+                <title>Weekly spending</title>
                 <line x1="0" y1="18" x2="720" y2="18" class="grid-line" />
                 <line x1="0" y1="79" x2="720" y2="79" class="grid-line" />
                 <line x1="0" y1="140" x2="720" y2="140" class="grid-line" />
@@ -332,128 +311,102 @@
 
     <section class="panel spending">
         <div class="panel__header">
-            <h2 class="num">@spent.ToString("C0") <span class="muted" style="font-size:0.75em">/ @budgetTarget.ToString("C0")</span></h2>
-            <span class="days-left">@daysRemaining @(daysRemaining == 1 ? "day" : "days") left</span>
+            <h2>Top categories this month</h2>
+            <span class="days-left">@Model.Categories.Count @(Model.Categories.Count == 1 ? "category" : "categories")</span>
         </div>
-        <div class="budget-total">
-            <span style="width: @(budgetUsedPct)%"></span>
-        </div>
-        <div class="budget-list">
-            @foreach (var row in budgetRows)
-            {
-                <div class="budget-row">
-                    <div class="budget-row__heading">
-                        <p>@row.Label</p>
-                        <span class="num"><strong>@row.Spent.ToString("C0")</strong></span>
+        @if (topCategories.Count == 0)
+        {
+            <p class="muted mb-0 mt-3">No expenses added this month yet.</p>
+        }
+        else
+        {
+            <div class="budget-list">
+                @foreach (var row in topCategories)
+                {
+                    <div class="budget-row">
+                        <div class="budget-row__heading">
+                            <p>@row.Label</p>
+                            <span class="num"><strong>@row.Spent.ToString("C0")</strong> (@row.Percent%)</span>
+                        </div>
+                        <div class="budget-bar">
+                            <span class="budget-bar__fill budget-bar__fill--@row.Tone" style="width: @(row.Percent)%"></span>
+                        </div>
                     </div>
-                    <div class="budget-bar">
-                        <span class="budget-bar__fill budget-bar__fill--@row.Tone" style="width: @(row.Percent)%"></span>
-                    </div>
-                </div>
-            }
-        </div>
+                }
+            </div>
+        }
         <a asp-action="Calendar" class="text-link">
             Open calendar
             <svg class="i" style="width:15px;height:15px"><use href="#i-arrow-up-right" /></svg>
         </a>
     </section>
 
-    <section class="panel transactions">
-        <div class="panel__header">
-            <h2>Recent expenses</h2>
-            <a asp-action="Expenses" class="text-link">
-                View all
-                <svg class="i" style="width:15px;height:15px"><use href="#i-arrow-up-right" /></svg>
-            </a>
-        </div>
-        <div class="transaction-list">
-            @if (Model.Recent.Count == 0)
-            {
-                <p class="muted mb-0 py-3">No expenses yet.</p>
-            }
-            else
-            {
-                var recentList = Model.Recent.Take(5).ToList();
-                for (var i = 0; i < recentList.Count; i++)
-                {
-                    var item = recentList[i];
-                    var tone = CatTone(i);
-                    <button type="button"
-                            class="transaction"
-                            title="Edit @item.Title"
-                            data-expense
-                            data-id="@item.Id"
-                            data-title="@item.Title"
-                            data-price="@item.Price"
-                            data-category="@item.Category"
-                            data-date="@item.Date.ToString("yyyy-MM-dd")"
-                            data-paymentmode="@((int)item.PaymentMode)"
-                            data-description="@item.Description">
-                        <span class="transaction__icon transaction__icon--@tone">
-                            <svg class="i"><use href="@CatIcon(item.Category)" /></svg>
-                        </span>
-                        <div class="transaction__details">
-                            <p>@item.Title</p>
-                            <span>@item.Category</span>
-                        </div>
-                        <strong class="num">− @item.Price?.ToString("C0")</strong>
-                    </button>
-                }
-            }
-        </div>
-    </section>
-
     <aside class="right-rail">
-        <section class="goal-card">
+        <section class="goal-card transactions">
             <div class="goal-card__top">
-                <span class="eyebrow eyebrow--light">Savings</span>
-                <a asp-action="Analytics" aria-label="Open analytics">
+                <span class="eyebrow eyebrow--light">Latest</span>
+                <a asp-action="Expenses" aria-label="See all expenses" title="See all expenses">
                     <svg class="i" style="width:18px;height:18px"><use href="#i-arrow-up-right" /></svg>
                 </a>
             </div>
-            <h2>A little place by the sea.</h2>
-            <div class="goal-visual">
-                <svg viewBox="0 0 160 160" role="img" aria-label="@goalPct percent of target saved">
-                    <circle cx="80" cy="80" r="62" class="goal-track" />
-                    <circle cx="80" cy="80" r="62" class="goal-progress" style="stroke-dashoffset: @goalDashOffset" />
-                </svg>
-                <div>
-                    <strong>@goalPct%</strong>
-                </div>
+            <h2>Recent expenses</h2>
+            <div class="transaction-list">
+                @if (Model.Recent.Count == 0)
+                {
+                    <p class="mb-0 py-3" style="color:rgba(255,255,255,0.75)">No expenses yet.</p>
+                }
+                else
+                {
+                    var recentList = Model.Recent.Take(5).ToList();
+                    for (var i = 0; i < recentList.Count; i++)
+                    {
+                        var item = recentList[i];
+                        var tone = CatTone(i);
+                        <button type="button"
+                                class="transaction"
+                                title="Edit @item.Title"
+                                data-expense
+                                data-id="@item.Id"
+                                data-title="@item.Title"
+                                data-price="@item.Price"
+                                data-category="@item.Category"
+                                data-date="@item.Date.ToString("yyyy-MM-dd")"
+                                data-paymentmode="@((int)item.PaymentMode)"
+                                data-description="@item.Description">
+                            <span class="transaction__icon transaction__icon--@tone">
+                                <svg class="i"><use href="@CatIcon(item.Category)" /></svg>
+                            </span>
+                            <div class="transaction__details">
+                                <p>@item.Title</p>
+                                <span>@item.Category · @item.Date.ToString("d MMM")</span>
+                            </div>
+                            <strong class="num">− @item.Price?.ToString("C0")</strong>
+                        </button>
+                    }
+                }
             </div>
-            <div class="goal-card__numbers">
-                <div>
-                    <span>Saved</span>
-                    <strong class="num">@goalSaved.ToString("C0")</strong>
-                </div>
-                <div>
-                    <span>Target</span>
-                    <strong class="num">@goalTarget.ToString("C0")</strong>
-                </div>
-            </div>
-            <a asp-action="Analytics" class="goal-button text-decoration-none">
-                <span>Analytics</span>
+            <a asp-action="Expenses" class="goal-button text-decoration-none">
+                <span>See all expenses</span>
                 <svg class="i" style="width:17px;height:17px"><use href="#i-arrow-up-right" /></svg>
             </a>
         </section>
 
         <section class="panel recurring">
             <div class="panel__header">
-                <h2>Recurring</h2>
-                <span class="recurring__total num">@recurringTotal.ToString("C0")</span>
+                <h2>Biggest this month</h2>
             </div>
-            @if (billExpenses.Count > 0)
+            @if (biggestExpenses.Count > 0)
             {
-                for (var i = 0; i < billExpenses.Count; i++)
+                for (var i = 0; i < biggestExpenses.Count; i++)
                 {
-                    var bill = billExpenses[i];
+                    var bill = biggestExpenses[i];
                     <div class="recurring-item">
                         <span class="recurring-item__date">
                             <strong>@bill.Date.ToString("dd")</strong>
                             @bill.Date.ToString("MMM").ToUpperInvariant()
                         </span>
                         <span class="recurring-item__icon @(i % 2 == 1 ? "recurring-item__icon--coral" : "")">
-                            <svg class="i" style="width:18px;height:18px"><use href="#i-repeat" /></svg>
+                            <svg class="i" style="width:18px;height:18px"><use href="@CatIcon(bill.Category)" /></svg>
                         </span>
                         <div class="min-w-0">
                             <p class="text-truncate">@bill.Title</p>
@@ -464,18 +417,7 @@
             }
             else
             {
-                <div class="recurring-item">
-                    <span class="recurring-item__date"><strong>22</strong>@today.ToString("MMM").ToUpperInvariant()</span>
-                    <span class="recurring-item__icon"><svg class="i" style="width:18px;height:18px"><use href="#i-repeat" /></svg></span>
-                    <div><p>Apartment WiFi</p></div>
-                    <strong class="num">₹999</strong>
-                </div>
-                <div class="recurring-item">
-                    <span class="recurring-item__date"><strong>25</strong>@today.ToString("MMM").ToUpperInvariant()</span>
-                    <span class="recurring-item__icon recurring-item__icon--coral"><svg class="i" style="width:18px;height:18px"><use href="#i-repeat" /></svg></span>
-                    <div><p>Electricity &amp; Utilities</p></div>
-                    <strong class="num">₹1,949</strong>
-                </div>
+                <p class="muted mb-0 mt-3">No expenses this month yet.</p>
             }
         </section>
     </aside>

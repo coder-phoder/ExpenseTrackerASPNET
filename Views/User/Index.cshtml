@@ -52,7 +52,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <partial name="_Theme" />
-    <title>Spendy — Every rupee, accounted for</title>
+    <title>Spendy — Track your daily expenses easily</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;display=swap" rel="stylesheet" />
@@ -82,13 +82,13 @@
         <div class="lp-hero__copy">
             <div class="lp-pill lp-fade" data-reveal>
                 <span class="lp-pill__rupee">₹</span>
-                <span>Personal expense tracking, made calm</span>
+                <span>Simple daily expense tracker</span>
             </div>
             <h1 class="lp-h1" data-reveal>
-                <span class="lp-rise"><span style="--d:.05s">Every</span> <span style="--d:.13s">rupee,</span></span>
-                <span class="lp-rise"><span class="lp-serif c-blue" style="--d:.24s">accounted</span> <span class="lp-serif c-violet" style="--d:.32s">for<span class="c-orange">.</span></span></span>
+                <span class="lp-rise"><span style="--d:.05s">Know</span> <span style="--d:.13s">where</span></span>
+                <span class="lp-rise"><span class="lp-serif c-blue" style="--d:.24s">your money</span> <span class="lp-serif c-violet" style="--d:.32s">goes<span class="c-orange">.</span></span></span>
             </h1>
-            <p class="lp-lede lp-fade" data-reveal style="--d:.45s">Log what you spend, see it on a calendar, and understand it with clear charts. Spendy keeps all your expenses in one private place.</p>
+            <p class="lp-lede lp-fade" data-reveal style="--d:.45s">Write down what you spend, check it on a calendar, and see simple charts. Spendy keeps all your expenses in one private place.</p>
             <div class="lp-ctas lp-fade" data-reveal style="--d:.58s">
                 <a asp-controller="Account" asp-action="Register" class="lp-btn lp-btn--primary">Create your account <span>→</span></a>
                 <a href="#story" class="lp-btn lp-btn--glass">See how it works</a>
@@ -152,10 +152,10 @@
             <div class="lp-story__grid">
                 <div>
                     <div class="lp-eyebrow">How it works</div>
-                    <h2 class="lp-h2 lp-story__title">From one entry to the <span class="lp-serif">whole picture.</span></h2>
+                    <h2 class="lp-h2 lp-story__title">Three simple steps to <span class="lp-serif">track your money.</span></h2>
                     <div class="lp-steps">
                         <div class="lp-step">
-                            <div class="lp-step__tag">01 · Log it</div>
+                            <div class="lp-step__tag">01 · Add it</div>
                             <div class="lp-step__title">Add an expense in seconds.</div>
                         </div>
                         <div class="lp-step">
@@ -164,7 +164,7 @@
                         </div>
                         <div class="lp-step">
                             <div class="lp-step__tag">03 · Understand it</div>
-                            <div class="lp-step__title">Watch the patterns appear.</div>
+                            <div class="lp-step__title">See where you spend the most.</div>
                         </div>
                     </div>
                     <div class="lp-rails">
@@ -364,7 +364,7 @@
                         <div class="fx-days">@foreach (var d in dow) { <span>@d</span> }</div>
                     </div>
                     <div>
-                        <h3>Know your big days</h3>
+                        <h3>See which days you spend more</h3>
                     </div>
                 </div>
 
@@ -377,7 +377,7 @@
                         <div class="fx-split"><div class="on"></div><div class="cash"></div></div>
                     </div>
                     <div>
-                        <h3>Online or cash</h3>
+                        <h3>Cash vs online payments</h3>
                     </div>
                 </div>
 
@@ -388,13 +388,13 @@
                         <div class="fx-rank"><span class="n">03</span><div class="t">Flight to Pune<small>08 Aug 2026 · Online</small></div><span class="a">₹4,820.00</span></div>
                     </div>
                     <div>
-                        <h3>Your biggest spends</h3>
+                        <h3>Your biggest expenses</h3>
                     </div>
                 </div>
 
                 <div class="lp-card lp-card--wide c-navy lp-fade" data-reveal style="--d:.2s">
                     <div class="c-navy__copy">
-                        <h3>Yours <span class="lp-serif">alone.</span></h3>
+                        <h3>Private and <span class="lp-serif">secure.</span></h3>
                     </div>
                     <div class="fx-login">
                         <div class="fx-login__t">Login</div>

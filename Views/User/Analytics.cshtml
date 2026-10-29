@@ -136,24 +136,24 @@
 }
 
 <div class="an-grid">
-    @* 1. Story Hero Banner *@
+    @* 1. Summary Banner *@
     <section class="an-hero an-col-12">
         <div class="an-hero__main">
             <div>
                 <h2 class="an-hero__headline">
                     @if (monthTotal <= prevMonthTotal && prevMonthTotal > 0)
                     {
-                        <text><em>@((prevMonthTotal - monthTotal).ToString("C0")) calmer</em> than last month.</text>
+                        <text>You spent <em>@((prevMonthTotal - monthTotal).ToString("C0")) less</em> than last month.</text>
                     }
                     else
                     {
-                        <text><em>@topCatName</em> leads your spending.</text>
+                        <text>You spent the most on <em>@topCatName</em>.</text>
                     }
                 </h2>
             </div>
 
             <div class="an-split-box">
-                <div class="an-split-bar" role="img" aria-label="Needs @needsPct%, Lifestyle @wantsPct%, Buffer @otherPct%">
+                <div class="an-split-bar" role="img" aria-label="Basic needs @needsPct%, Personal & fun @wantsPct%, Other @otherPct%">
                     <span style="flex: @Math.Max(8, needsPct); background: var(--mint)"></span>
                     <span style="flex: @Math.Max(8, wantsPct); background: var(--coral)"></span>
                     <span style="flex: @Math.Max(6, otherPct); background: var(--sand)"></span>
@@ -161,11 +161,11 @@
                 <div class="an-split-legend">
                     <div class="an-split-item">
                         <span class="an-split-dot" style="background: var(--mint)"></span>
-                        <span>Essentials <strong class="num">@needsPct%</strong></span>
+                        <span>Basic needs <strong class="num">@needsPct%</strong></span>
                     </div>
                     <div class="an-split-item">
                         <span class="an-split-dot" style="background: var(--coral)"></span>
-                        <span>Lifestyle <strong class="num">@wantsPct%</strong></span>
+                        <span>Personal &amp; fun <strong class="num">@wantsPct%</strong></span>
                     </div>
                     <div class="an-split-item">
                         <span class="an-split-dot" style="background: var(--sand)"></span>
@@ -181,15 +181,15 @@
                 <strong class="num">@CompactMoney(monthTotal)</strong>
             </div>
             <div class="an-glass-stat">
-                <span>Calm days</span>
+                <span>No-spend days</span>
                 <strong class="num">@calmDaysThisMonth</strong>
             </div>
             <div class="an-glass-stat">
-                <span>Avg expense</span>
+                <span>Average expense</span>
                 <strong class="num">@avgTicket.ToString("C0")</strong>
             </div>
             <div class="an-glass-stat">
-                <span>All-time</span>
+                <span>Total spent</span>
                 <strong class="num">@CompactMoney(total)</strong>
             </div>
         </div>
@@ -198,19 +198,19 @@
         <div class="an-hero__orbit an-hero__orbit--two"></div>
     </section>
 
-    @* 2. 12-Month Horizon Pill Chart *@
+    @* 2. 12-Month Spending Chart *@
     <section class="panel an-col-7">
         <div class="panel__header">
-            <h2>12-month trend</h2>
+            <h2>Monthly spending (last 12 months)</h2>
             <span class="an-horizon__avg num">
-                Avg @CompactMoney(avgMonthlyAmt)
+                Monthly avg: @CompactMoney(avgMonthlyAmt)
             </span>
         </div>
 
         <div class="chart-summary" style="margin-top:0.9rem">
-            <div><span class="legend-dot" style="background:var(--mint)"></span>Calm</div>
-            <div><span class="legend-dot" style="background:var(--ink)"></span>Current</div>
-            <div><span class="legend-dot" style="background:var(--coral)"></span>Peak</div>
+            <div><span class="legend-dot" style="background:var(--mint)"></span>Low</div>
+            <div><span class="legend-dot" style="background:var(--ink)"></span>This month</div>
+            <div><span class="legend-dot" style="background:var(--coral)"></span>Highest</div>
         </div>
 
         <div class="an-horizon">
@@ -244,10 +244,10 @@
         </div>
     </section>
 
-    @* 3. Category Donut & Visual Story *@
+    @* 3. Spending by Category *@
     <section class="panel an-col-5">
         <div class="panel__header">
-            <h2>Categories</h2>
+            <h2>Spending by category</h2>
         </div>
 
         <div class="an-donut-wrap">
@@ -256,7 +256,7 @@
                     const double ringCirc = 314.16; // 2 * pi * 50
                     var ringOffset = 0.0;
                 }
-                <svg viewBox="0 0 120 120" role="img" aria-label="Spending by category donut chart">
+                <svg viewBox="0 0 120 120" role="img" aria-label="Spending by category chart">
                     <circle cx="60" cy="60" r="50" fill="none" stroke="var(--line-soft)" stroke-width="14" />
                     @for (var i = 0; i < topCategories.Count; i++)
                     {
@@ -306,11 +306,11 @@
         </div>
     </section>
 
-    @* 4. Weekly Habit Capsules & 14-Day Mood Strip *@
+    @* 4. Spending by Day of the Week *@
     <section class="panel an-col-6">
         <div class="panel__header">
-            <h2>@dowFull[peakDowIndex] peak</h2>
-            <span class="days-left num">@weekendSharePct% weekends</span>
+            <h2>Spending by day of week</h2>
+            <span class="days-left num">@weekendSharePct% on weekends</span>
         </div>
 
         <div class="an-week-capsules">
@@ -330,6 +330,7 @@
         </div>
 
         <div class="an-habit-strip">
+            <p class="muted small mb-2">Last 14 days (green = ₹0 spent, red = high spending)</p>
             <div class="an-habit-dots">
                 @foreach (var d in last14Days)
                 {
@@ -348,10 +349,10 @@
         </div>
     </section>
 
-    @* 5. Payment Flow & Biggest Moments *@
+    @* 5. Payment Methods & Biggest Expenses *@
     <section class="panel an-col-6">
         <div class="panel__header">
-            <h2>Payment &amp; peaks</h2>
+            <h2>How you paid &amp; biggest expenses</h2>
             <a asp-action="Expenses" asp-route-sort="price_desc" class="text-link">
                 See all
                 <svg class="i" style="width:15px;height:15px"><use href="#i-arrow-up-right" /></svg>

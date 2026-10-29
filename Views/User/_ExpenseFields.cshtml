@@ -13,14 +13,14 @@
 
 <label class="field">
     <span>Title</span>
-    <input asp-for="Expense.Title" placeholder="e.g. Morning Brew, Groceries" />
+    <input asp-for="Expense.Title" placeholder="e.g. Milk, Groceries, Bus ticket" />
     <span asp-validation-for="Expense.Title" class="text-danger small"></span>
 </label>
 
 <div class="form-row">
     <label class="field">
         <span>Category</span>
-        <input asp-for="Expense.Category" list="categoryList" autocomplete="off" placeholder="Living, Home, Food..." />
+        <input asp-for="Expense.Category" list="categoryList" autocomplete="off" placeholder="e.g. Food, Bills, Travel" />
         <datalist id="categoryList">
             @foreach (var c in Model.Categories)
             {
@@ -31,7 +31,7 @@
     </label>
 
     <label class="field">
-        <span>Payment Mode</span>
+        <span>How did you pay?</span>
         <select asp-for="Expense.PaymentMode" asp-items="Html.GetEnumSelectList<PaymentMode>()"></select>
     </label>
 </div>
@@ -44,8 +44,8 @@
     </label>
 
     <label class="field">
-        <span>Description</span>
-        <input asp-for="Expense.Description" placeholder="Optional" />
+        <span>Notes (optional)</span>
+        <input asp-for="Expense.Description" placeholder="Extra details" />
         <span asp-validation-for="Expense.Description" class="text-danger small"></span>
     </label>
 </div>
